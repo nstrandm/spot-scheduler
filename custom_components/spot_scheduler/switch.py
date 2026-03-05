@@ -56,6 +56,15 @@ async def async_setup_entry(
     # even if _unload_callbacks hasn't been populated yet (race guard).
     entry.async_on_unload(cancel)
 
+    # Apply current hour's schedule once HA is fully started (covers restarts
+    # mid-hour where the :00:30 trigger hasn't fired yet).
+    entry.async_on_unload(
+        hass.bus.async_listen_once(
+            "homeassistant_started",
+            lambda _: hass.async_create_task(_apply_schedules(hass, entry, switches)),
+        )
+    )
+
     # Update switch states when schedule changes, and apply immediately
     # if the change affects the current hour
     @callback

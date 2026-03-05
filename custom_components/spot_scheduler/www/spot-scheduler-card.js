@@ -86,7 +86,7 @@ const STYLES = `
   .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
-  .bar-h { font-size:11px; color:var(--disabled-text-color); margin-top:3px; }
+  .bar-h { font-size:14px; color:var(--disabled-text-color); margin-top:3px; }
   .bar-h.cur { color:var(--warning-color, #ff9800); font-weight:800; }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
   .grid-scroll { overflow-x:auto; overflow-y:hidden; }
@@ -97,7 +97,7 @@ const STYLES = `
     display:flex; align-items:center; padding-right:5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cell { aspect-ratio:1; border-radius:4px; border:2px solid transparent;
-    display:flex; align-items:center; justify-content:center;
+    display:flex; align-items:center; justify-content:center; margin: 7px;
     font-size:13px; font-weight:700; cursor:pointer; min-height:24px;
     transition:transform .1s; }
   .cell:hover { transform:scale(1.1); z-index:5; position:relative; }
@@ -116,7 +116,13 @@ const STYLES = `
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function _todayISO() { return new Date().toISOString().split("T")[0]; }
+function _todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function _el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -188,7 +194,13 @@ class SpotSchedulerCard extends HTMLElement {
   _syncFromSensor(state) {
     const attrs = state?.attributes ?? {};
     const today    = _todayISO();
-    const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().split("T")[0]; })();
+    const tomorrow = (() => {
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    })();
 
     const todayPrices    = attrs.prices ?? {};
     const tomorrowPrices = attrs.prices_tomorrow ?? {};
@@ -205,6 +217,9 @@ class SpotSchedulerCard extends HTMLElement {
     }
     if (attrs.schedules && Object.keys(attrs.schedules).length) {
       this._schedules[today] = attrs.schedules;
+    }
+    if (attrs.schedules_tomorrow && Object.keys(attrs.schedules_tomorrow).length) {
+      this._schedules[tomorrow] = attrs.schedules_tomorrow;
     }
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
@@ -435,7 +450,7 @@ class SpotSchedulerCard extends HTMLElement {
     for (const devId of devices) {
       const name = this._deviceName(devId);
       const row = _el("div");
-      row.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin-bottom:4px;align-items:center`;
+      row.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:6px;align-items:center`;
       const lbl = _el("div", "dev-lbl", name); lbl.title = devId;
       row.appendChild(lbl);
 
