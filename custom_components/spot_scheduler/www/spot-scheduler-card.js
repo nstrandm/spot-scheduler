@@ -226,7 +226,7 @@ class SpotSchedulerCard extends HTMLElement {
     if (!this._hass) return null;
     return Object.keys(this._hass.states).find(
       id => id.startsWith("sensor.") &&
-            id.includes("spot_scheduler") &&
+            id.includes("spotscheduler") &&
             id.includes("schedule_status")
     ) ?? null;
   }
