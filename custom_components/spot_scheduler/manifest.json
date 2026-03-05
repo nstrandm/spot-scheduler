@@ -1,19 +1,19 @@
 {
   "domain": "spot_scheduler",
   "name": "SpotScheduler",
-  "version": "1.8.0",
-  "documentation": "https://github.com/nstrandm/spot-scheduler",
-  "issue_tracker": "https://github.com/nstrandm/spot-scheduler/issues",
-  "dependencies": [
-    "nordpool",
-    "lovelace"
-  ],
   "after_dependencies": [
     "nordpool"
   ],
   "codeowners": [
     "@nstrandm"
   ],
+  "dependencies": [
+    "nordpool",
+    "lovelace"
+  ],
+  "documentation": "https://github.com/nstrandm/spot-scheduler",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/nstrandm/spot-scheduler/issues",
   "requirements": [],
-  "iot_class": "cloud_polling"
+  "version": "1.8.0"
 }
