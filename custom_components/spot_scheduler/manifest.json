@@ -7,6 +7,7 @@
   "codeowners": [
     "@nstrandm"
   ],
+  "config_flow": true,
   "dependencies": [
     "nordpool",
     "lovelace"
