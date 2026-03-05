@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write  # Tarvitaan releasen luomiseen ja tiedostojen lataamiseen
+  packages: write  # Jos käytät packages
+  id-token: write  # Jos tarvitset OIDC-tokenia
+
 jobs:
   release:
     runs-on: ubuntu-latest
