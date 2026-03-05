@@ -161,10 +161,13 @@ async def _register_frontend(hass: HomeAssistant) -> None:
     if hass.data.get(f"{DOMAIN}_frontend_registered"):
         return
 
-    # Serve files from custom_components/spot_scheduler/www/
-    # Support both old and new HA HTTP API
+    # Locate www/ relative to this file:
+    # __file__ = .../custom_components/spot_scheduler/__init__.py
+    # www/     = .../custom_components/spot_scheduler/www/
+    import pathlib
+    integration_dir = pathlib.Path(__file__).parent
+    static_path = str(integration_dir / "www")
     static_url = f"/api/{DOMAIN}/static"
-    static_path = hass.config.path(f"custom_components/{DOMAIN}/www")
 
     try:
         from homeassistant.components.http import StaticPathConfig
@@ -172,7 +175,6 @@ async def _register_frontend(hass: HomeAssistant) -> None:
             [StaticPathConfig(static_url, static_path, True)]
         )
     except (ImportError, AttributeError):
-        # Fallback for older HA versions
         try:
             hass.http.register_static_path(static_url, static_path, cache_headers=True)
         except Exception as exc:

@@ -56,15 +56,54 @@ async def async_setup_entry(
     # even if _unload_callbacks hasn't been populated yet (race guard).
     entry.async_on_unload(cancel)
 
-    # Update switch states when schedule changes
+    # Update switch states when schedule changes, and apply immediately
+    # if the change affects the current hour
     @callback
     def _on_schedule_changed(event: Event) -> None:
         for sw in switches:
             sw.async_write_ha_state()
 
+        # If the change is for today + current hour, apply it right away
+        now = dt_util.now()
+        today = now.date().isoformat()
+        ev_date = event.data.get("date")
+        ev_hour = event.data.get("hour")
+        if ev_date == today and ev_hour == now.hour:
+            hass.async_create_task(
+                _apply_schedule_for_device(
+                    hass, entry,
+                    event.data.get("device_id"),
+                    event.data.get("enabled"),
+                )
+            )
+
     entry.async_on_unload(
         hass.bus.async_listen(f"{DOMAIN}_schedule_changed", _on_schedule_changed)
     )
+
+
+async def _apply_schedule_for_device(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    device_id: str | None,
+    enabled: bool | None,
+) -> None:
+    """Immediately apply a schedule change for a single device."""
+    if not device_id or enabled is None:
+        return
+    if entry.entry_id not in hass.data.get(DOMAIN, {}):
+        return
+
+    if enabled:
+        await hass.services.async_call(
+            "homeassistant", "turn_on", {"entity_id": device_id}, blocking=False
+        )
+        _LOGGER.info("Schedule (immediate): ON  %s", device_id)
+    else:
+        await hass.services.async_call(
+            "homeassistant", "turn_off", {"entity_id": device_id}, blocking=False
+        )
+        _LOGGER.info("Schedule (immediate): OFF %s", device_id)
 
 
 async def _apply_schedules(

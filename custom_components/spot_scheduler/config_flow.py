@@ -95,7 +95,7 @@ class SpotSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return SpotSchedulerOptionsFlow(config_entry)
+        return SpotSchedulerOptionsFlow()
 
 
 class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
