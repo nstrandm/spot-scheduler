@@ -2,7 +2,7 @@
 
 > Manually schedule Home Assistant devices by hour based on Nord Pool spot electricity prices.
 
-![SpotScheduler card](images/card-screenshot.svg)
+![SpotScheduler card](images/card-screenshot.png)
 
 SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly electricity prices as a bar chart and lets you click each cell to schedule a device **on** or **off** for that hour. Schedules are stored persistently and executed automatically at the start of each hour.
 
@@ -85,17 +85,13 @@ The card resource is registered automatically on first startup. If auto-registra
 
 ## Setup
 
-### Step 1 — Settings
+### Settings
 
-![Config flow step 1](images/config-flow-step1.svg)
-
-Choose the Nord Pool integration entry, give the integration a name, and set how many of the most expensive hours to highlight in red.
-
-### Step 2 — Select devices
-
-![Config flow step 2](images/config-flow-step2.svg)
+![Config flow ](images/config-flow.png)
 
 Pick devices from HA's entity list. Supported domains: `switch`, `light`, `climate`, `input_boolean`.
+
+Choose the Nord Pool integration entry, give the integration a name, and set how many of the most expensive hours to highlight in red. Set limits for cheap and expensive prices.
 
 ### Changing settings later
 
