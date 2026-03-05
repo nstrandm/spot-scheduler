@@ -54,7 +54,8 @@ const STYLES = `
   .card { background: var(--ha-card-background, var(--card-background-color));
     border-radius: var(--ha-card-border-radius, 12px);
     padding: 20px; color: var(--primary-text-color);
-    box-shadow: var(--ha-card-box-shadow, var(--material-shadow-elevation-2dp)); }
+    box-shadow: var(--ha-card-box-shadow, var(--material-shadow-elevation-2dp));
+    overflow: hidden; }
   .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
   .title { font-size:20px; font-weight:700; color:var(--primary-text-color); }
   .subtitle { font-size:13px; color:var(--secondary-text-color); margin-top:3px; }
@@ -86,27 +87,27 @@ const STYLES = `
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
   .bar-h { font-size:11px; color:var(--disabled-text-color); margin-top:3px; }
-  .bar-h.cur { color:var(--primary-color); font-weight:800; }
+  .bar-h.cur { color:var(--warning-color, #ff9800); font-weight:800; }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
-  .grid-scroll { overflow-x:auto; }
+  .grid-scroll { overflow-x:auto; overflow-y:hidden; }
   .gh { text-align:center; font-size:12px; color:var(--disabled-text-color);
     font-weight:700; padding:2px 0; }
   .gh.cur { color:var(--primary-color); }
   .dev-lbl { font-size:13px; font-weight:600; color:var(--primary-text-color);
     display:flex; align-items:center; padding-right:5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .cell { aspect-ratio:1; border-radius:4px; border:1.5px solid transparent;
+  .cell { aspect-ratio:1; border-radius:4px; border:2px solid transparent;
     display:flex; align-items:center; justify-content:center;
-    font-size:11px; font-weight:700; cursor:pointer; min-height:24px;
+    font-size:13px; font-weight:700; cursor:pointer; min-height:24px;
     transition:transform .1s; }
-  .cell:hover { transform:scale(1.15); z-index:5; position:relative; }
+  .cell:hover { transform:scale(1.1); z-index:5; position:relative; }
   .cell.on { background:var(--primary-color); border-color:var(--primary-color);
     color:var(--text-primary-color, #fff);
     box-shadow:0 0 6px color-mix(in srgb, var(--primary-color) 45%, transparent); }
   .cell.off { background:var(--secondary-background-color);
     border-color:var(--divider-color); color:var(--disabled-text-color); }
   .cell.exp-cell { border-color:var(--error-color, #f87171) !important; }
-  .cell.cur-cell { box-shadow:0 0 0 2px var(--primary-color); }
+  .cell.cur-cell { box-shadow:0 0 0 2.5px var(--warning-color, #ff9800); }
   .no-prices { text-align:center; padding:20px; color:var(--disabled-text-color);
     font-size:13px; }
   .save-hint { text-align:right; font-size:10px; color:var(--disabled-text-color);
@@ -385,7 +386,7 @@ class SpotSchedulerCard extends HTMLElement {
       { style: "background:var(--primary-color);border:1.5px solid var(--primary-color)", key: "legend_on" },
       { style: "background:var(--secondary-background-color);border:1.5px solid var(--divider-color)", key: "legend_off" },
       { style: "background:var(--ha-card-background,var(--card-background-color));border:1.5px solid var(--error-color,#f87171)", key: "legend_expensive" },
-      { style: "border:2px solid var(--primary-color);background:transparent", key: "legend_current" },
+      { style: "border:2.5px solid var(--warning-color, #ff9800);background:transparent", key: "legend_current" },
     ];
     const legendSpans = [];
     for (const item of legDefs) {
@@ -398,10 +399,19 @@ class SpotSchedulerCard extends HTMLElement {
     }
     card.appendChild(legend);
 
+    // ── Shared layout constants ─────────────────────────────────────────────
+    const devices = this._config.devices ?? [];
+    const labelW = this._config.label_width ?? 120;
+    const gridCols = `${labelW}px repeat(24, minmax(18px, 1fr))`;
+
     // ── Price bars ────────────────────────────────────────────────────────────
     const priceSection = _el("div", "price-section");
     const priceLbl = _el("div", "price-lbl");
     const barsContainer = _el("div", "bars");
+    // Add empty spacer to align with device label column
+    const barSpacer = _el("div");
+    barSpacer.style.cssText = `width:${labelW}px;flex-shrink:0`;
+    barsContainer.insertBefore(barSpacer, barsContainer.firstChild);
     priceSection.append(priceLbl, barsContainer);
 
     const barEls = [];
@@ -417,26 +427,8 @@ class SpotSchedulerCard extends HTMLElement {
     const noPricesMsg = _el("div", "no-prices");
     card.append(priceSection, noPricesMsg);
 
-    // ── Divider ──────────────────────────────────────────────────────────────
-    card.appendChild(_el("div", "divider"));
-
-    // ── Schedule grid ────────────────────────────────────────────────────────
+    // ── Schedule grid (no separate hour row – hours shown on bar labels) ──
     const gridScroll = _el("div", "grid-scroll");
-    const devices = this._config.devices ?? [];
-    const labelW = this._config.label_width ?? 120;
-    const gridCols = `${labelW}px repeat(24, minmax(18px, 1fr))`;
-
-    // Hour header row
-    const headerRow = _el("div");
-    headerRow.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin-bottom:3px`;
-    headerRow.appendChild(_el("div"));
-    const hourHeaders = [];
-    for (let h = 0; h < 24; h++) {
-      const gh = _el("div", "gh", String(h));
-      headerRow.appendChild(gh);
-      hourHeaders.push(gh);
-    }
-    gridScroll.appendChild(headerRow);
 
     // Device rows with persistent cells – event listeners bound once here
     const deviceRows = [];
@@ -472,7 +464,7 @@ class SpotSchedulerCard extends HTMLElement {
       prevBtn, nextBtn, dateLbl, pricesNote,
       legendSpans,
       priceSection, noPricesMsg, priceLbl, barEls,
-      hourHeaders, deviceRows, noDevicesMsg, saveHint,
+      deviceRows, noDevicesMsg, saveHint,
     };
   }
 
@@ -555,11 +547,6 @@ class SpotSchedulerCard extends HTMLElement {
       d.noPricesMsg.textContent = this._tr("prices_pending");
     }
 
-    // Hour column headers
-    for (let h = 0; h < 24; h++) {
-      d.hourHeaders[h].className = (isToday && h === curHour) ? "gh cur" : "gh";
-    }
-
     // Schedule grid cells – update only changed attributes
     for (const row of d.deviceRows) {
       // Update device label dynamically (friendly_name may load later)
@@ -573,8 +560,8 @@ class SpotSchedulerCard extends HTMLElement {
 
         let cls = "cell";
         let icon = "";
-        if (state === true)       { cls += " on";    icon = "☑"; }
-        else                       { cls += " off";   icon = "☐"; }
+        if (state === true)       { cls += " on";    icon = "✔"; }
+        else                       { cls += " off";   icon = "—"; }
         if (isExp) cls += " exp-cell";
         if (isCur) cls += " cur-cell";
 
