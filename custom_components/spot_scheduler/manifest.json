@@ -5,7 +5,8 @@
   "documentation": "https://github.com/nstrandm/spot-scheduler",
   "issue_tracker": "https://github.com/nstrandm/spot-scheduler/issues",
   "dependencies": [
-    "nordpool"
+    "nordpool",
+    "lovelace"
   ],
   "after_dependencies": [
     "nordpool"
@@ -14,6 +15,5 @@
     "@nstrandm"
   ],
   "requirements": [],
-  "iot_class": "cloud_polling",
-  "homeassistant": "2024.12.0"
+  "iot_class": "cloud_polling"
 }
