@@ -35,11 +35,13 @@
         "title": "SpotScheduler – asetukset",
         "data": {
           "devices": "Ohjattavat laitteet",
-          "expensive_hours_count": "Kalliiden tuntien korostus"
+          "expensive_hours_count": "Kalliiden tuntien korostus",
+          "nordpool_config_entry": "Nord Pool -integraatio"
         },
         "data_description": {
           "devices": "Lisää tai poista laitteita aikataulusta.",
-          "expensive_hours_count": "Tämä määrä kalleimpia tunteja korostetaan punaisella aikataulunäkymässä."
+          "expensive_hours_count": "Tämä määrä kalleimpia tunteja korostetaan punaisella aikataulunäkymässä.",
+          "nordpool_config_entry": "Valitse käytettävä Nord Pool -integraatio hintatietojen hakuun."
         }
       }
     }

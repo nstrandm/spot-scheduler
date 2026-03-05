@@ -99,11 +99,10 @@ class SpotSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
-    """Options flow – modify devices and expensive-hours threshold."""
+    """Options flow – modify devices, expensive-hours threshold, and Nord Pool entry."""
 
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            # NumberSelector returns float; cast to int for downstream use
             if "expensive_hours_count" in user_input:
                 user_input["expensive_hours_count"] = int(user_input["expensive_hours_count"])
             return self.async_create_entry(title="", data=user_input)
@@ -111,20 +110,37 @@ class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
         # Merge data + options so existing selections are pre-filled
         merged = {**self.config_entry.data, **self.config_entry.options}
 
+        # Build Nord Pool entry options
+        np_entries = _nordpool_entries(self.hass)
+        np_options = [
+            SelectOptionDict(value=e.entry_id, label=e.title) for e in np_entries
+        ]
+
+        schema = {
+            vol.Required(CONF_DEVICES, default=merged.get(CONF_DEVICES, [])): EntitySelector(
+                EntitySelectorConfig(
+                    domain=["switch", "light", "climate", "input_boolean"],
+                    multiple=True,
+                )
+            ),
+            vol.Optional(
+                CONF_EXPENSIVE_HOURS_COUNT,
+                default=merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS),
+            ): NumberSelector(
+                NumberSelectorConfig(min=1, max=12, step=1, mode=NumberSelectorMode.SLIDER)
+            ),
+        }
+
+        # Only show Nord Pool selector if there are entries to choose from
+        if np_options:
+            schema[vol.Required(
+                CONF_NORDPOOL_CONFIG_ENTRY,
+                default=merged.get(CONF_NORDPOOL_CONFIG_ENTRY, np_entries[0].entry_id if np_entries else ""),
+            )] = SelectSelector(
+                SelectSelectorConfig(options=np_options, mode=SelectSelectorMode.LIST)
+            )
+
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema({
-                vol.Required(CONF_DEVICES, default=merged.get(CONF_DEVICES, [])): EntitySelector(
-                    EntitySelectorConfig(
-                        domain=["switch", "light", "climate", "input_boolean"],
-                        multiple=True,
-                    )
-                ),
-                vol.Optional(
-                    CONF_EXPENSIVE_HOURS_COUNT,
-                    default=merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS),
-                ): NumberSelector(
-                    NumberSelectorConfig(min=1, max=12, step=1, mode=NumberSelectorMode.SLIDER)
-                ),
-            }),
+            data_schema=vol.Schema(schema),
         )

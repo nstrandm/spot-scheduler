@@ -153,6 +153,9 @@ class SpotScheduleStatusSensor(_SpotBase):
     def extra_state_attributes(self) -> dict[str, Any]:
         today = dt_util.now().date().isoformat()
         d = self._data()
+        config = d.get("config", {})
+        # Merge options over data for current settings
+        merged = {**config, **self._entry.options}
         return {
             "schedules": d.get("schedules", {}).get(today, {}),
             "prices":    d.get("prices", {}).get(today, {}),
@@ -162,4 +165,6 @@ class SpotScheduleStatusSensor(_SpotBase):
             "min_price": d.get("min_price"),
             "max_price": d.get("max_price"),
             "tomorrow_fetched": d.get("tomorrow_fetched", False),
+            "expensive_hours_count": merged.get("expensive_hours_count", 3),
+            "devices": merged.get("devices", []),
         }

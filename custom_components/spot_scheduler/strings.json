@@ -35,11 +35,13 @@
         "title": "SpotScheduler settings",
         "data": {
           "devices": "Devices to control",
-          "expensive_hours_count": "Expensive hours to highlight"
+          "expensive_hours_count": "Expensive hours to highlight",
+          "nordpool_config_entry": "Nord Pool integration entry"
         },
         "data_description": {
           "devices": "Add or remove devices from the schedule.",
-          "expensive_hours_count": "This many most expensive hours per day will be highlighted in the schedule view."
+          "expensive_hours_count": "This many most expensive hours per day will be highlighted in the schedule view.",
+          "nordpool_config_entry": "Select which Nord Pool integration instance to use for price data."
         }
       }
     }

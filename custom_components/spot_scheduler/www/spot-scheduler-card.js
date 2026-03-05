@@ -147,17 +147,17 @@ class SpotSchedulerCard extends HTMLElement {
 
   // ── HA lifecycle ────────────────────────────────────────────────────────────
   setConfig(config) {
-    if (!config.devices || !config.devices.length) {
-      throw new Error("SpotScheduler: at least one device must be configured.");
-    }
     this._config = {
       title: null,
-      devices: [],
-      expensive_hours: 3,
+      devices: [],          // populated from sensor if not in config
+      device_names: {},      // optional: { "light.foo": "Custom Name" }
+      expensive_hours: 3,    // populated from sensor if not in config
       label_width: 120,
       ...config,
+      // Track whether values came from YAML so sensor doesn't override them
+      _devicesFromYaml: !!(config.devices?.length),
+      _expensiveFromYaml: config.expensive_hours !== undefined,
     };
-    // Rebuild DOM structure when config changes (rare – only on card edit)
     this._dom = null;
     this._update();
   }
@@ -207,6 +207,19 @@ class SpotSchedulerCard extends HTMLElement {
     if (attrs.schedules) this._schedules = { ...this._schedules, ...attrs.schedules };
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
+
+    // Read integration settings from sensor (unless overridden in card YAML)
+    if (attrs.expensive_hours_count != null && !this._config._expensiveFromYaml) {
+      this._config.expensive_hours = attrs.expensive_hours_count;
+    }
+    if (attrs.devices?.length && !this._config._devicesFromYaml) {
+      const oldDevices = JSON.stringify(this._config.devices);
+      this._config.devices = attrs.devices;
+      // Rebuild DOM if device list changed
+      if (JSON.stringify(this._config.devices) !== oldDevices) {
+        this._dom = null;
+      }
+    }
   }
 
   _findStatusEntity() {
@@ -220,6 +233,17 @@ class SpotSchedulerCard extends HTMLElement {
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   _tr(key, vars = {}) { return _t(this._lang, key, vars); }
+
+  _deviceName(devId) {
+    // 1. Custom name from card YAML
+    const custom = this._config.device_names?.[devId];
+    if (custom) return custom;
+    // 2. HA friendly_name
+    const state = this._hass?.states?.[devId];
+    if (state?.attributes?.friendly_name) return state.attributes.friendly_name;
+    // 3. Fallback: parse from entity ID
+    return devId.split(".").pop().replace(/_/g, " ");
+  }
 
   _expensiveHours() {
     const today = _todayISO();
@@ -405,7 +429,7 @@ class SpotSchedulerCard extends HTMLElement {
     // Device rows with persistent cells – event listeners bound once here
     const deviceRows = [];
     for (const devId of devices) {
-      const name = devId.split(".").pop().replace(/_/g, " ");
+      const name = this._deviceName(devId);
       const row = _el("div");
       row.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin-bottom:4px;align-items:center`;
       const lbl = _el("div", "dev-lbl", name); lbl.title = devId;
@@ -419,7 +443,7 @@ class SpotSchedulerCard extends HTMLElement {
         cells.push({ el: cell, devId, hour: h });
       }
       gridScroll.appendChild(row);
-      deviceRows.push({ devId, name, cells });
+      deviceRows.push({ devId, lbl, cells });
     }
 
     const noDevicesMsg = _el("div", "no-prices");
@@ -523,6 +547,10 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Schedule grid cells – update only changed attributes
     for (const row of d.deviceRows) {
+      // Update device label dynamically (friendly_name may load later)
+      const name = this._deviceName(row.devId);
+      if (row.lbl.textContent !== name) row.lbl.textContent = name;
+
       for (const { el, devId, hour } of row.cells) {
         const state = this._isScheduled(devId, hour);
         const isExp = expHours.has(hour);
@@ -538,7 +566,7 @@ class SpotSchedulerCard extends HTMLElement {
 
         if (el.className !== cls) el.className = cls;
         if (el.textContent !== icon) el.textContent = icon;
-        el.title = `${hour}:00 · ${row.name} · ${this._fmtPrice(dayPrices[hour])}`;
+        el.title = `${hour}:00 · ${name} · ${this._fmtPrice(dayPrices[hour])}`;
       }
     }
 
@@ -553,10 +581,7 @@ class SpotSchedulerCard extends HTMLElement {
   getCardSize() { return 6; }
 
   static getStubConfig() {
-    return {
-      devices: ["switch.device_1", "switch.device_2"],
-      expensive_hours: 3,
-    };
+    return {};
   }
 }
 

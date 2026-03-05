@@ -33,7 +33,8 @@ def parse_hourly_prices(
         if isinstance(start, str):
             start = datetime.fromisoformat(start)
         local_hour = start.astimezone(tz).hour
-        hourly.setdefault(local_hour, []).append(float(price))
+        # Nord Pool returns EUR/MWh; convert to EUR/kWh
+        hourly.setdefault(local_hour, []).append(float(price) / 1000.0)
 
     return {h: round(sum(v) / len(v), 5) for h, v in hourly.items()}
 

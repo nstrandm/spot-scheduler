@@ -37,6 +37,14 @@ from .logic import parse_hourly_prices, prune_old_dates, set_schedule
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.SENSOR]
 
+
+def _get_nordpool_entry_id(entry: ConfigEntry) -> str | None:
+    """Get Nord Pool config entry ID, preferring options over data."""
+    return (
+        entry.options.get(CONF_NORDPOOL_CONFIG_ENTRY)
+        or entry.data.get(CONF_NORDPOOL_CONFIG_ENTRY)
+    )
+
 SET_SCHEDULE_SCHEMA = vol.Schema({
     vol.Optional("date"): cv.date,
     vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
@@ -58,7 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register the Lovelace card JS resource (once, idempotent)
     await _register_frontend(hass)
 
-    nordpool_entry_id = entry.data.get(CONF_NORDPOOL_CONFIG_ENTRY)
+    nordpool_entry_id = _get_nordpool_entry_id(entry)
     if not hass.config_entries.async_get_entry(nordpool_entry_id):
         ir.async_create_issue(
             hass, DOMAIN, ISSUE_NORDPOOL_MISSING,
@@ -101,9 +109,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Core Nord Pool has no tomorrow_valid attribute, so we poll get_prices_for_date.
     # The call is cheap because HA caches the result internally.
     poll_minutes = list(range(0, 60, TOMORROW_POLL_INTERVAL_MINUTES))  # [0, 15, 30, 45]
+
+    @callback
+    def _poll_tomorrow_cb(_now) -> None:
+        hass.async_create_task(_poll_tomorrow_if_needed(hass, entry))
+
     cancel_poll = async_track_time_change(
         hass,
-        lambda _: hass.async_create_task(_poll_tomorrow_if_needed(hass, entry)),
+        _poll_tomorrow_cb,
         hour=list(range(TOMORROW_POLL_START_HOUR, 24)),
         minute=poll_minutes,
         second=30,
@@ -111,9 +124,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id]["_unload_callbacks"].append(cancel_poll)
 
     # Midnight: new day → reset guard, re-fetch, prune old data
+    @callback
+    def _midnight_cb(_now) -> None:
+        hass.async_create_task(_on_midnight(hass, entry))
+
     cancel_midnight = async_track_time_change(
         hass,
-        lambda _: hass.async_create_task(_on_midnight(hass, entry)),
+        _midnight_cb,
         hour=0, minute=0, second=15,
     )
     hass.data[DOMAIN][entry.entry_id]["_unload_callbacks"].append(cancel_midnight)
@@ -317,8 +334,13 @@ async def _fetch_prices_for_date(
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
         return False
 
-    nordpool_entry_id = entry.data.get(CONF_NORDPOOL_CONFIG_ENTRY)
+    nordpool_entry_id = _get_nordpool_entry_id(entry)
     date_str = target_date.isoformat()
+
+    _LOGGER.debug(
+        "Fetching prices: nordpool entry=%s, date=%s",
+        nordpool_entry_id, date_str,
+    )
 
     try:
         result = await hass.services.async_call(
@@ -329,12 +351,17 @@ async def _fetch_prices_for_date(
             return_response=True,
         )
     except Exception as exc:
-        _LOGGER.warning("nordpool.get_prices_for_date failed for %s: %s", date_str, exc)
+        _LOGGER.warning(
+            "nordpool.get_prices_for_date failed for %s (entry=%s): %s",
+            date_str, nordpool_entry_id, exc,
+        )
         return False
 
     if not result:
-        _LOGGER.debug("Empty response from nordpool for %s", date_str)
+        _LOGGER.warning("Empty response from nordpool for %s (entry=%s)", date_str, nordpool_entry_id)
         return False
+
+    _LOGGER.debug("Nord Pool raw response keys: %s", list(result.keys()) if isinstance(result, dict) else type(result))
 
     # Parse: { area_code: [ {start, end, price}, … ] }
     # 15-min slots are averaged into hourly buckets via logic.parse_hourly_prices.
