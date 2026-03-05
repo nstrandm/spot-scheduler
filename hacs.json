@@ -1,34 +1,7 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-*.egg
-.eggs/
-
-# Virtual environments
-venv/
-.venv/
-env/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-.ruff_cache/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Home Assistant config (for local testing)
-config/
+{
+  "name": "SpotScheduler",
+  "content_in_root": false,
+  "render_readme": true,
+  "homeassistant": "2024.12.0",
+  "category": "integration"
+}

@@ -55,6 +55,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up SpotScheduler from a config entry."""
     hass.data.setdefault(DOMAIN, {})
 
+    # Register the Lovelace card JS resource (once, idempotent)
+    await _register_frontend(hass)
+
     nordpool_entry_id = entry.data.get(CONF_NORDPOOL_CONFIG_ENTRY)
     if not hass.config_entries.async_get_entry(nordpool_entry_id):
         ir.async_create_issue(
@@ -146,6 +149,55 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+# ── Frontend resource registration ─────────────────────────────────────────────
+
+CARD_URL = f"/hacsfiles/{DOMAIN}/spot-scheduler-card.js"
+CARD_URL_FALLBACK = f"/local/community/{DOMAIN}/www/spot-scheduler-card.js"
+
+async def _register_frontend(hass: HomeAssistant) -> None:
+    """Register the Lovelace card JS resource once."""
+    if hass.data.get(f"{DOMAIN}_frontend_registered"):
+        return
+
+    # Use the official http static path registration for custom components.
+    # This serves files from custom_components/spot_scheduler/www/
+    hass.http.register_static_path(
+        f"/api/{DOMAIN}/static",
+        hass.config.path(f"custom_components/{DOMAIN}/www"),
+        cache_headers=True,
+    )
+
+    # Register as a Lovelace resource so users don't have to manually add it.
+    # This requires the lovelace component (always present in HA).
+    try:
+        from homeassistant.components.lovelace.resources import (
+            ResourceStorageCollection,
+        )
+        resources: ResourceStorageCollection | None = hass.data.get("lovelace_resources")
+        if resources is not None:
+            # Check if already registered
+            url = f"/api/{DOMAIN}/static/spot-scheduler-card.js"
+            existing = [
+                r for r in resources.async_items()
+                if r.get("url", "").rstrip("?v=") == url.rstrip("?v=")
+                or DOMAIN in r.get("url", "")
+            ]
+            if not existing:
+                await resources.async_create_item({"res_type": "module", "url": url})
+                _LOGGER.info("Registered Lovelace resource: %s", url)
+            else:
+                _LOGGER.debug("Lovelace resource already registered.")
+        else:
+            _LOGGER.debug(
+                "Lovelace resources collection not available – "
+                "card must be added manually as a resource."
+            )
+    except Exception as exc:
+        _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
+
+    hass.data[f"{DOMAIN}_frontend_registered"] = True
 
 
 # ── Nord Pool state tracking ───────────────────────────────────────────────────
