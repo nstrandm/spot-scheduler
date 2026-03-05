@@ -81,15 +81,15 @@ const STYLES = `
   .leg-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
   .price-section { margin-bottom:14px; }
   .price-lbl { font-size:12px; color:var(--disabled-text-color); margin-bottom:5px; }
-  .bars { display:flex; align-items:flex-end; gap:2px; height:60px; }
+  .bars { display:flex; align-items:flex-end; gap:2px; height:80px; }
   .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
-  .bar-h { font-size:9px; color:var(--disabled-text-color); margin-top:3px; }
+  .bar-h { font-size:11px; color:var(--disabled-text-color); margin-top:3px; }
   .bar-h.cur { color:var(--primary-color); font-weight:800; }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
   .grid-scroll { overflow-x:auto; }
-  .gh { text-align:center; font-size:10px; color:var(--disabled-text-color);
+  .gh { text-align:center; font-size:12px; color:var(--disabled-text-color);
     font-weight:700; padding:2px 0; }
   .gh.cur { color:var(--primary-color); }
   .dev-lbl { font-size:13px; font-weight:600; color:var(--primary-text-color);
@@ -105,8 +105,6 @@ const STYLES = `
     box-shadow:0 0 6px color-mix(in srgb, var(--primary-color) 45%, transparent); }
   .cell.off { background:var(--secondary-background-color);
     border-color:var(--divider-color); color:var(--disabled-text-color); }
-  .cell.unset { background:var(--ha-card-background, var(--card-background-color));
-    border-color:var(--divider-color); }
   .cell.exp-cell { border-color:var(--error-color, #f87171) !important; }
   .cell.cur-cell { box-shadow:0 0 0 2px var(--primary-color); }
   .no-prices { text-align:center; padding:20px; color:var(--disabled-text-color);
@@ -204,7 +202,9 @@ class SpotSchedulerCard extends HTMLElement {
       for (const [h, v] of Object.entries(tomorrowPrices))
         this._prices[tomorrow][parseInt(h)] = v;
     }
-    if (attrs.schedules) this._schedules = { ...this._schedules, ...attrs.schedules };
+    if (attrs.schedules && Object.keys(attrs.schedules).length) {
+      this._schedules[today] = attrs.schedules;
+    }
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
 
@@ -539,7 +539,7 @@ class SpotSchedulerCard extends HTMLElement {
       for (let h = 0; h < 24; h++) {
         const { col, bar, label } = d.barEls[h];
         const p = dayPrices[h];
-        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 48) + 3 : 2;
+        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 70) + 3 : 2;
         const color = p != null ? this._priceColor(p) : "var(--secondary-background-color)";
         const isExp = expHours.has(h);
 
@@ -573,9 +573,8 @@ class SpotSchedulerCard extends HTMLElement {
 
         let cls = "cell";
         let icon = "";
-        if (state === true)       { cls += " on";    icon = "✓"; }
-        else if (state === false)  { cls += " off";   icon = "✕"; }
-        else                       { cls += " unset"; }
+        if (state === true)       { cls += " on";    icon = "☑"; }
+        else                       { cls += " off";   icon = "☐"; }
         if (isExp) cls += " exp-cell";
         if (isCur) cls += " cur-cell";
 

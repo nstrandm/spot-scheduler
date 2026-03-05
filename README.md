@@ -38,7 +38,6 @@ SpotScheduler uses the Nord Pool integration's `nordpool.get_prices_for_date` se
 
 Tomorrow's prices in the Nordics are typically published between **13:00–15:00 CET** (14:00–16:00 EET in Finland). SpotScheduler polls for them every 15 minutes starting at 13:00 local time and also reacts to any Nord Pool sensor update. Once tomorrow's prices are fetched, polling stops until the next day.
 
-> **Note:** Core Nord Pool does not expose a `tomorrow_valid` attribute. SpotScheduler works around this by periodically calling `nordpool.get_prices_for_date` for tomorrow's date.
 
 ---
 
@@ -227,23 +226,3 @@ The card language follows the **HA user profile** setting (`hass.locale.language
 | Finnish | `fi` | ✅ |
 
 To add a new language, add an entry to the `TRANSLATIONS` object in `www/spot-scheduler-card.js` and a new file under `custom_components/spot_scheduler/translations/`.
-
----
-
-## Changelog
-
-### 1.8.0 — current
-
-- Lovelace card resource is now registered automatically (no manual resource setup needed)
-- Fixed: devices added via options flow are now correctly recognized by the `set_device_schedule` service
-- Extracted core logic into `logic.py` for better testability
-- Added `services.yaml` for Developer Tools service descriptions
-- Card: persistent DOM rendering (no more full innerHTML rebuilds)
-- Card: date navigation limited to 7 days back / 1 day forward
-- Card: negative electricity prices handled correctly in price bar colors
-- Fixed `iot_class` in manifest (`cloud_polling`)
-- Test suite rewritten to test actual production code (27 logic tests + 12 integration tests)
-
-### 1.5.0
-
-Initial release.
