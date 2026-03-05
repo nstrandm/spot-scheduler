@@ -161,13 +161,22 @@ async def _register_frontend(hass: HomeAssistant) -> None:
     if hass.data.get(f"{DOMAIN}_frontend_registered"):
         return
 
-    # Use the official http static path registration for custom components.
-    # This serves files from custom_components/spot_scheduler/www/
-    hass.http.register_static_path(
-        f"/api/{DOMAIN}/static",
-        hass.config.path(f"custom_components/{DOMAIN}/www"),
-        cache_headers=True,
-    )
+    # Serve files from custom_components/spot_scheduler/www/
+    # Support both old and new HA HTTP API
+    static_url = f"/api/{DOMAIN}/static"
+    static_path = hass.config.path(f"custom_components/{DOMAIN}/www")
+
+    try:
+        from homeassistant.components.http import StaticPathConfig
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(static_url, static_path, True)]
+        )
+    except (ImportError, AttributeError):
+        # Fallback for older HA versions
+        try:
+            hass.http.register_static_path(static_url, static_path, cache_headers=True)
+        except Exception as exc:
+            _LOGGER.warning("Could not register static path: %s", exc)
 
     # Register as a Lovelace resource so users don't have to manually add it.
     # This requires the lovelace component (always present in HA).
