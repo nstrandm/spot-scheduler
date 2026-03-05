@@ -18,6 +18,10 @@ from .const import (
     CONF_DEVICES,
     CONF_EXPENSIVE_HOURS_COUNT,
     DEFAULT_EXPENSIVE_HOURS,
+    CONF_PRICE_THRESHOLD_LOW,
+    CONF_PRICE_THRESHOLD_HIGH,
+    DEFAULT_PRICE_THRESHOLD_LOW,
+    DEFAULT_PRICE_THRESHOLD_HIGH,
 )
 
 
@@ -105,6 +109,10 @@ class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             if "expensive_hours_count" in user_input:
                 user_input["expensive_hours_count"] = int(user_input["expensive_hours_count"])
+            if CONF_PRICE_THRESHOLD_LOW in user_input:
+                user_input[CONF_PRICE_THRESHOLD_LOW] = float(user_input[CONF_PRICE_THRESHOLD_LOW])
+            if CONF_PRICE_THRESHOLD_HIGH in user_input:
+                user_input[CONF_PRICE_THRESHOLD_HIGH] = float(user_input[CONF_PRICE_THRESHOLD_HIGH])
             return self.async_create_entry(title="", data=user_input)
 
         # Merge data + options so existing selections are pre-filled
@@ -128,6 +136,20 @@ class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
                 default=merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS),
             ): NumberSelector(
                 NumberSelectorConfig(min=1, max=12, step=1, mode=NumberSelectorMode.SLIDER)
+            ),
+            vol.Optional(
+                CONF_PRICE_THRESHOLD_LOW,
+                default=merged.get(CONF_PRICE_THRESHOLD_LOW, DEFAULT_PRICE_THRESHOLD_LOW),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, max=50, step=0.5, mode=NumberSelectorMode.SLIDER,
+                                     unit_of_measurement="c/kWh")
+            ),
+            vol.Optional(
+                CONF_PRICE_THRESHOLD_HIGH,
+                default=merged.get(CONF_PRICE_THRESHOLD_HIGH, DEFAULT_PRICE_THRESHOLD_HIGH),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, max=50, step=0.5, mode=NumberSelectorMode.SLIDER,
+                                     unit_of_measurement="c/kWh")
             ),
         }
 

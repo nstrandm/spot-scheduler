@@ -34,14 +34,18 @@
       "init": {
         "title": "SpotScheduler settings",
         "data": {
-          "devices": "Devices to control",
-          "expensive_hours_count": "Expensive hours to highlight",
-          "nordpool_config_entry": "Nord Pool integration entry"
+          "devices": "Devices to schedule",
+          "expensive_hours_count": "Expensive hours (highlighted in red)",
+          "nordpool_config_entry": "Nord Pool integration",
+          "price_threshold_low": "Cheap price limit (green)",
+          "price_threshold_high": "Expensive price limit (red)"
         },
         "data_description": {
-          "devices": "Add or remove devices from the schedule.",
-          "expensive_hours_count": "This many most expensive hours per day will be highlighted in the schedule view.",
-          "nordpool_config_entry": "Select which Nord Pool integration instance to use for price data."
+          "devices": "Choose which devices can be scheduled on/off by hour.",
+          "expensive_hours_count": "This many most expensive hours per day will be outlined in red.",
+          "nordpool_config_entry": "Select which Nord Pool instance provides the price data.",
+          "price_threshold_low": "Prices below this are shown in green. In cents per kWh.",
+          "price_threshold_high": "Prices above this are shown in red. In cents per kWh."
         }
       }
     }

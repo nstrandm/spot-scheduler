@@ -35,13 +35,17 @@
         "title": "SpotScheduler – asetukset",
         "data": {
           "devices": "Ohjattavat laitteet",
-          "expensive_hours_count": "Kalliiden tuntien korostus",
-          "nordpool_config_entry": "Nord Pool -integraatio"
+          "expensive_hours_count": "Kalliit tunnit (korostetaan punaisella)",
+          "nordpool_config_entry": "Nord Pool -integraatio",
+          "price_threshold_low": "Halvan hinnan raja (vihreä)",
+          "price_threshold_high": "Kalliin hinnan raja (punainen)"
         },
         "data_description": {
-          "devices": "Lisää tai poista laitteita aikataulusta.",
-          "expensive_hours_count": "Tämä määrä kalleimpia tunteja korostetaan punaisella aikataulunäkymässä.",
-          "nordpool_config_entry": "Valitse käytettävä Nord Pool -integraatio hintatietojen hakuun."
+          "devices": "Valitse laitteet joita voi ajastaa tunneittain päälle/pois.",
+          "expensive_hours_count": "Näin monta kalleinta tuntia korostetaan punaisella reunuksella.",
+          "nordpool_config_entry": "Valitse käytettävä Nord Pool -integraatio hintatietojen hakuun.",
+          "price_threshold_low": "Tätä halvemmat tunnit näkyvät vihreinä. Senttiä per kWh.",
+          "price_threshold_high": "Tätä kalliimmat tunnit näkyvät punaisina. Senttiä per kWh."
         }
       }
     }

@@ -167,4 +167,6 @@ class SpotScheduleStatusSensor(_SpotBase):
             "tomorrow_fetched": d.get("tomorrow_fetched", False),
             "expensive_hours_count": merged.get("expensive_hours_count", 3),
             "devices": merged.get("devices", []),
+            "price_threshold_low": merged.get("price_threshold_low", 5.0),
+            "price_threshold_high": merged.get("price_threshold_high", 15.0),
         }

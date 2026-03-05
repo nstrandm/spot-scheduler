@@ -10,6 +10,12 @@ CONF_EXPENSIVE_HOURS_COUNT = "expensive_hours_count"
 
 DEFAULT_EXPENSIVE_HOURS = 3
 
+# Price color thresholds (EUR/kWh cents) – 0 means "use relative scaling"
+CONF_PRICE_THRESHOLD_LOW = "price_threshold_low"
+CONF_PRICE_THRESHOLD_HIGH = "price_threshold_high"
+DEFAULT_PRICE_THRESHOLD_LOW = 5.0    # below this = green (cents/kWh)
+DEFAULT_PRICE_THRESHOLD_HIGH = 15.0  # above this = red (cents/kWh)
+
 NORDPOOL_DOMAIN = "nordpool"
 
 # Issue registry identifiers

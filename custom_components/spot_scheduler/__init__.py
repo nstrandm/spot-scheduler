@@ -100,6 +100,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not ok:
         _maybe_raise_unavailable_issue(hass)
 
+    # Also try tomorrow's prices on startup if it's past poll start hour
+    if dt_util.now().hour >= TOMORROW_POLL_START_HOUR:
+        tomorrow = dt_util.now().date() + timedelta(days=1)
+        tok = await _fetch_prices_for_date(hass, entry, tomorrow)
+        if tok:
+            hass.data[DOMAIN][entry.entry_id]["tomorrow_fetched"] = True
+            _LOGGER.info("Tomorrow's prices fetched on startup (%s)", tomorrow)
+
     # Watch every Nord Pool entity belonging to this config entry.
     # When next_price (or any sensor) updates its state, Nord Pool has polled
     # a fresh data set – use that as a lightweight signal to try tomorrow.
@@ -281,8 +289,10 @@ async def _poll_tomorrow_if_needed(hass: HomeAssistant, entry: ConfigEntry) -> N
 
     # Fast-path checks outside the lock to avoid unnecessary contention
     if data.get("tomorrow_fetched"):
+        _LOGGER.debug("Tomorrow already fetched, skipping poll")
         return
     if dt_util.now().hour < TOMORROW_POLL_START_HOUR:
+        _LOGGER.debug("Too early to poll tomorrow (hour=%d, start=%d)", dt_util.now().hour, TOMORROW_POLL_START_HOUR)
         return
 
     lock: asyncio.Lock = data["_tomorrow_lock"]

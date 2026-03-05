@@ -56,48 +56,48 @@ const STYLES = `
     padding: 20px; color: var(--primary-text-color);
     box-shadow: var(--ha-card-box-shadow, var(--material-shadow-elevation-2dp)); }
   .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
-  .title { font-size:17px; font-weight:700; color:var(--primary-text-color); }
-  .subtitle { font-size:11px; color:var(--secondary-text-color); margin-top:3px; }
+  .title { font-size:20px; font-weight:700; color:var(--primary-text-color); }
+  .subtitle { font-size:13px; color:var(--secondary-text-color); margin-top:3px; }
   .stats { display:flex; gap:9px; }
   .stat-box { background:var(--secondary-background-color); border-radius:9px;
-    padding:7px 13px; text-align:center; min-width:72px; }
-  .stat-label { font-size:9px; color:var(--secondary-text-color);
+    padding:8px 14px; text-align:center; min-width:80px; }
+  .stat-label { font-size:11px; color:var(--secondary-text-color);
     text-transform:uppercase; letter-spacing:.8px; }
-  .stat-value { font-size:13px; font-weight:700; margin-top:2px; }
+  .stat-value { font-size:15px; font-weight:700; margin-top:2px; }
   .stat-value.min { color:var(--success-color, #4ade80); }
   .stat-value.max { color:var(--error-color, #f87171); }
   .date-nav { display:flex; align-items:center; gap:9px; margin-bottom:14px; }
   .date-btn { background:var(--secondary-background-color); border:none;
-    color:var(--secondary-text-color); width:28px; height:28px;
-    border-radius:6px; cursor:pointer; font-size:13px;
+    color:var(--secondary-text-color); width:32px; height:32px;
+    border-radius:6px; cursor:pointer; font-size:15px;
     display:flex; align-items:center; justify-content:center; }
   .date-btn:hover { filter:brightness(1.15); }
   .date-btn:disabled { opacity:0.3; cursor:default; filter:none; }
-  .date-lbl { font-size:13px; font-weight:600; color:var(--primary-text-color); }
-  .prices-note { font-size:10px; color:var(--disabled-text-color); margin-left:auto; }
+  .date-lbl { font-size:15px; font-weight:600; color:var(--primary-text-color); }
+  .prices-note { font-size:11px; color:var(--disabled-text-color); margin-left:auto; }
   .legend { display:flex; gap:13px; flex-wrap:wrap; margin-bottom:14px; }
   .leg-item { display:flex; align-items:center; gap:6px;
-    font-size:11px; color:var(--secondary-text-color); }
-  .leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    font-size:13px; color:var(--secondary-text-color); }
+  .leg-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
   .price-section { margin-bottom:14px; }
-  .price-lbl { font-size:10px; color:var(--disabled-text-color); margin-bottom:5px; }
-  .bars { display:flex; align-items:flex-end; gap:2px; height:52px; }
+  .price-lbl { font-size:12px; color:var(--disabled-text-color); margin-bottom:5px; }
+  .bars { display:flex; align-items:flex-end; gap:2px; height:60px; }
   .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
-  .bar-h { font-size:7px; color:var(--disabled-text-color); margin-top:3px; }
+  .bar-h { font-size:9px; color:var(--disabled-text-color); margin-top:3px; }
   .bar-h.cur { color:var(--primary-color); font-weight:800; }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
   .grid-scroll { overflow-x:auto; }
-  .gh { text-align:center; font-size:8px; color:var(--disabled-text-color);
+  .gh { text-align:center; font-size:10px; color:var(--disabled-text-color);
     font-weight:700; padding:2px 0; }
   .gh.cur { color:var(--primary-color); }
-  .dev-lbl { font-size:11px; font-weight:600; color:var(--primary-text-color);
+  .dev-lbl { font-size:13px; font-weight:600; color:var(--primary-text-color);
     display:flex; align-items:center; padding-right:5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cell { aspect-ratio:1; border-radius:4px; border:1.5px solid transparent;
     display:flex; align-items:center; justify-content:center;
-    font-size:9px; font-weight:700; cursor:pointer; min-height:20px;
+    font-size:11px; font-weight:700; cursor:pointer; min-height:24px;
     transition:transform .1s; }
   .cell:hover { transform:scale(1.15); z-index:5; position:relative; }
   .cell.on { background:var(--primary-color); border-color:var(--primary-color);
@@ -220,14 +220,17 @@ class SpotSchedulerCard extends HTMLElement {
         this._dom = null;
       }
     }
+    // Price color thresholds (cents/kWh)
+    if (attrs.price_threshold_low != null) this._config._thresholdLow = attrs.price_threshold_low;
+    if (attrs.price_threshold_high != null) this._config._thresholdHigh = attrs.price_threshold_high;
   }
 
   _findStatusEntity() {
     if (!this._hass) return null;
     return Object.keys(this._hass.states).find(
       id => id.startsWith("sensor.") &&
-            id.includes("spotscheduler") &&
-            id.includes("schedule_status")
+            id.includes("schedule_status") &&
+            (id.includes("spot_scheduler") || id.includes("spotscheduler"))
     ) ?? null;
   }
 
@@ -283,14 +286,23 @@ class SpotSchedulerCard extends HTMLElement {
   }
 
   _priceColor(price) {
-    const min = this._minPrice ?? 0;
-    const max = this._maxPrice ?? 0.2;
-    const range = max - min;
-    if (!range) return "#a0c4ff";
-    const r = Math.max(0, Math.min(1, (price - min) / range));
-    if (r < 0.35) return `rgb(50,${Math.round(200 + 55 * (1 - r / 0.35))},70)`;
-    if (r < 0.65) { const t2 = (r - 0.35) / 0.3; return `rgb(${Math.round(200 + 55 * t2)},${Math.round(200 - 80 * t2)},50)`; }
-    const t2 = (r - 0.65) / 0.35; return `rgb(${Math.round(230 + 25 * t2)},${Math.round(80 - 50 * t2)},50)`;
+    // Price is in EUR/kWh, thresholds are in cents/kWh
+    const priceCents = price * 100;
+    const low = this._config._thresholdLow ?? 5;
+    const high = this._config._thresholdHigh ?? 15;
+
+    if (high <= low) return "#a0c4ff";
+
+    // Clamp ratio: 0 = at or below low threshold, 1 = at or above high threshold
+    const r = Math.max(0, Math.min(1, (priceCents - low) / (high - low)));
+
+    // Green → Yellow → Red
+    if (r < 0.5) {
+      const t = r / 0.5;
+      return `rgb(${Math.round(50 + 200 * t)},${Math.round(200 + 55 * (1 - t))},50)`;
+    }
+    const t = (r - 0.5) / 0.5;
+    return `rgb(${Math.round(230 + 25 * t)},${Math.round(200 - 170 * t)},50)`;
   }
 
   _fmtPrice(p) {
@@ -487,13 +499,16 @@ class SpotSchedulerCard extends HTMLElement {
     d.titleEl.textContent = this._config.title || this._tr("title");
     d.subtitleEl.textContent = this._tr("subtitle");
 
-    // Stats visibility + values
-    if (this._minPrice != null) {
+    // Stats visibility + values – show for selected day
+    const dayPriceValues = Object.values(dayPrices);
+    if (dayPriceValues.length) {
       d.statsEl.style.display = "";
+      const dayMin = Math.min(...dayPriceValues);
+      const dayMax = Math.max(...dayPriceValues);
       d.minLabel.textContent = this._tr("stat_min");
-      d.minValue.textContent = this._fmtPrice(this._minPrice);
+      d.minValue.textContent = this._fmtPrice(dayMin);
       d.maxLabel.textContent = this._tr("stat_max");
-      d.maxValue.textContent = this._fmtPrice(this._maxPrice);
+      d.maxValue.textContent = this._fmtPrice(dayMax);
     } else {
       d.statsEl.style.display = "none";
     }
