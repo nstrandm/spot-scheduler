@@ -1,0 +1,53 @@
+set_device_schedule:
+  name: Set device schedule
+  description: Set the on/off schedule for a specific device and hour.
+  fields:
+    date:
+      name: Date
+      description: Target date (defaults to today).
+      required: false
+      example: "2025-03-05"
+      selector:
+        date:
+    hour:
+      name: Hour
+      description: Hour of the day (0-23).
+      required: true
+      example: 14
+      selector:
+        number:
+          min: 0
+          max: 23
+          step: 1
+          mode: box
+    device_id:
+      name: Device entity ID
+      description: Entity ID of the device to schedule.
+      required: true
+      example: "switch.water_heater"
+      selector:
+        entity:
+          domain:
+            - switch
+            - light
+            - climate
+            - input_boolean
+    enabled:
+      name: Enabled
+      description: Whether the device should be on (true) or off (false) for this hour.
+      required: true
+      example: true
+      selector:
+        boolean:
+
+refresh_prices:
+  name: Refresh prices
+  description: Manually trigger a price fetch from Nord Pool. Fetches for all configured SpotScheduler instances.
+  fields:
+    date:
+      name: Date
+      description: Date to fetch prices for (defaults to today).
+      required: false
+      example: "2025-03-05"
+      selector:
+        date:

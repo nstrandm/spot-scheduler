@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 440" width="480" height="440">
+  <defs>
+    <style>text { font-family: 'Segoe UI', system-ui, sans-serif; }</style>
+  </defs>
+  <rect width="480" height="440" rx="4" fill="#111827"/>
+
+  <!-- Dialog -->
+  <rect x="40" y="20" width="400" height="400" rx="14" fill="#1c2333" stroke="#2a3348" stroke-width="1"/>
+
+  <!-- Header -->
+  <rect x="40" y="20" width="400" height="58" rx="14" fill="#151b28"/>
+  <rect x="40" y="54" width="400" height="24" fill="#151b28"/>
+  <rect x="56" y="32" width="36" height="36" rx="8" fill="#1e3a5f"/>
+  <text x="74" y="56" fill="#60a5fa" font-size="18" text-anchor="middle">🔌</text>
+  <text x="104" y="48" fill="#fff" font-size="15" font-weight="700">Select devices</text>
+  <text x="104" y="64" fill="#4a5568" font-size="11">Add integration · Step 2 of 2</text>
+
+  <!-- Step indicator -->
+  <circle cx="116" cy="98" r="12" fill="#1e4d8f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="116" y="103" fill="#93c5fd" font-size="11" text-anchor="middle" font-weight="700">✓</text>
+  <line x1="128" y1="98" x2="352" y2="98" stroke="#1e4d8f" stroke-width="2"/>
+  <circle cx="364" cy="98" r="12" fill="#1e3a5f" stroke="#60a5fa" stroke-width="2"/>
+  <text x="364" y="103" fill="#60a5fa" font-size="11" text-anchor="middle" font-weight="700">2</text>
+  <text x="116" y="120" fill="#4a5568" font-size="10" text-anchor="middle">Settings</text>
+  <text x="364" y="120" fill="#60a5fa" font-size="10" text-anchor="middle" font-weight="600">Devices</text>
+
+  <!-- Field label -->
+  <text x="60" y="148" fill="#8896b3" font-size="11" font-weight="600">DEVICES TO CONTROL</text>
+
+  <!-- Entity selector box -->
+  <rect x="60" y="154" width="360" height="36" rx="8" fill="#151b28" stroke="#2a3348" stroke-width="1.5"/>
+  <text x="80" y="177" fill="#4a5568" font-size="12">🔍  Search entities…</text>
+
+  <!-- Entity list -->
+  <rect x="60" y="190" width="360" height="160" rx="0 0 8 8" fill="#151b28" stroke="#1a1f2e" stroke-width="1"/>
+
+  <!-- Entity items -->
+  <!-- selected: washing machine -->
+  <rect x="60" y="190" width="360" height="38" fill="#1e3a5f"/>
+  <text x="80" y="214" font-size="14">🫧</text>
+  <text x="104" y="208" fill="#c8d3e8" font-size="12" font-weight="600">Washing machine</text>
+  <text x="104" y="222" fill="#4a5568" font-size="10">switch.washing_machine · off</text>
+  <text x="404" y="214" fill="#3b82f6" font-size="14" text-anchor="middle">✓</text>
+
+  <line x1="60" y1="228" x2="420" y2="228" stroke="#1a1f2e" stroke-width="1"/>
+
+  <!-- selected: EV charger -->
+  <rect x="60" y="228" width="360" height="38" fill="#1e3a5f"/>
+  <text x="80" y="252" font-size="14">🔋</text>
+  <text x="104" y="246" fill="#c8d3e8" font-size="12" font-weight="600">EV charger</text>
+  <text x="104" y="260" fill="#4a5568" font-size="10">switch.ev_charger · off</text>
+  <text x="404" y="252" fill="#3b82f6" font-size="14" text-anchor="middle">✓</text>
+
+  <line x1="60" y1="266" x2="420" y2="266" stroke="#1a1f2e" stroke-width="1"/>
+
+  <!-- unselected: floor heating -->
+  <rect x="60" y="266" width="360" height="38" fill="transparent"/>
+  <text x="80" y="290" font-size="14">🌡️</text>
+  <text x="104" y="284" fill="#c8d3e8" font-size="12" font-weight="600">Floor heating</text>
+  <text x="104" y="298" fill="#4a5568" font-size="10">climate.floor_heating · heat</text>
+
+  <line x1="60" y1="304" x2="420" y2="304" stroke="#1a1f2e" stroke-width="1"/>
+
+  <!-- unselected: dishwasher -->
+  <rect x="60" y="304" width="360" height="38" fill="transparent"/>
+  <text x="80" y="328" font-size="14">🍽️</text>
+  <text x="104" y="322" fill="#c8d3e8" font-size="12" font-weight="600">Dishwasher</text>
+  <text x="104" y="336" fill="#4a5568" font-size="10">switch.dishwasher · off</text>
+
+  <!-- Chips -->
+  <rect x="60" y="358" width="116" height="24" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+  <text x="74" y="374" font-size="11">🫧</text>
+  <text x="88" y="374" fill="#93c5fd" font-size="11">Washing machine</text>
+  <text x="168" y="374" fill="#4a5568" font-size="13">×</text>
+
+  <rect x="184" y="358" width="84" height="24" rx="12" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/>
+  <text x="198" y="374" font-size="11">🔋</text>
+  <text x="212" y="374" fill="#93c5fd" font-size="11">EV charger</text>
+  <text x="260" y="374" fill="#4a5568" font-size="13">×</text>
+
+  <!-- Buttons -->
+  <line x1="60" y1="392" x2="420" y2="392" stroke="#1e2435" stroke-width="1"/>
+  <rect x="248" y="403" width="80" height="32" rx="8" fill="transparent" stroke="#2a3348" stroke-width="1.5"/>
+  <text x="288" y="424" fill="#6b7a99" font-size="12" text-anchor="middle">← Back</text>
+  <rect x="340" y="403" width="80" height="32" rx="8" fill="#1e4d8f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="380" y="424" fill="#93c5fd" font-size="12" text-anchor="middle">Done ✓</text>
+</svg>
