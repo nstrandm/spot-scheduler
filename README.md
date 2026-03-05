@@ -56,7 +56,7 @@ Tomorrow's prices in Finland are typically published between **14:00–16:00 EET
 ### Via HACS (recommended)
 
 1. Open HACS → **Integrations** → ⋮ → **Custom repositories**
-2. Add `https://github.com/yourusername/spot-scheduler` → category **Integration**
+2. Add `https://github.com/nstrandm/spot-scheduler` → category **Integration**
 3. Find **SpotScheduler** and click **Download**
 4. Restart Home Assistant
 
