@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f1923;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a2d42;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barGrad1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4aa;stop-opacity:0.35" />
+      <stop offset="100%" style="stop-color:#00957a;stop-opacity:0.12" />
+    </linearGradient>
+    <linearGradient id="barGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#00b8d4;stop-opacity:0.35" />
+      <stop offset="100%" style="stop-color:#007a95;stop-opacity:0.12" />
+    </linearGradient>
+    <linearGradient id="barGrad3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd166;stop-opacity:0.35" />
+      <stop offset="100%" style="stop-color:#e6a800;stop-opacity:0.12" />
+    </linearGradient>
+    <linearGradient id="barGrad4" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b6b;stop-opacity:0.35" />
+      <stop offset="100%" style="stop-color:#cc3333;stop-opacity:0.12" />
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="10%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffd166;stop-opacity:1" />
+    </linearGradient>
+    <filter id="boltGlow">
+      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="ringGlow">
+      <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" ry="96" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid lines -->
+  <g opacity="0.06" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="170" x2="512" y2="170"/>
+    <line x1="0" y1="260" x2="512" y2="260"/>
+    <line x1="0" y1="350" x2="512" y2="350"/>
+    <line x1="85"  y1="100" x2="85"  y2="430"/>
+    <line x1="170" y1="100" x2="170" y2="430"/>
+    <line x1="255" y1="100" x2="255" y2="430"/>
+    <line x1="340" y1="100" x2="340" y2="430"/>
+    <line x1="425" y1="100" x2="425" y2="430"/>
+  </g>
+
+  <!-- Price bars (faded background) -->
+  <rect x="28"  y="308" width="50" height="100" rx="5" fill="url(#barGrad1)"/>
+  <rect x="113" y="252" width="50" height="156" rx="5" fill="url(#barGrad2)"/>
+  <rect x="198" y="192" width="50" height="216" rx="5" fill="url(#barGrad3)"/>
+  <rect x="283" y="155" width="50" height="253" rx="5" fill="url(#barGrad4)"/>
+  <rect x="368" y="278" width="50" height="130" rx="5" fill="url(#barGrad1)"/>
+  <rect x="453" y="225" width="50" height="183" rx="5" fill="url(#barGrad2)"/>
+
+  <!-- Schedule "on" indicator lines above cheap bars -->
+  <rect x="28"  y="293" width="50" height="7" rx="3" fill="#00d4aa" opacity="0.4"/>
+  <rect x="368" y="263" width="50" height="7" rx="3" fill="#00d4aa" opacity="0.4"/>
+
+  <!-- Base line -->
+  <rect x="20" y="416" width="472" height="3" rx="2" fill="#ffffff" opacity="0.1"/>
+
+  <!-- Large circle ring, centered at 256,248 r=170 -->
+  <circle cx="256" cy="248" r="170" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.08"/>
+  <circle cx="256" cy="248" r="170" fill="none" stroke="#00d4aa" stroke-width="8"
+    stroke-dasharray="430 640" stroke-dashoffset="-45"
+    stroke-linecap="round" opacity="0.8" filter="url(#ringGlow)"/>
+  <circle cx="256" cy="248" r="170" fill="none" stroke="#ffd166" stroke-width="5"
+    stroke-dasharray="90 1000" stroke-dashoffset="220"
+    stroke-linecap="round" opacity="0.55" filter="url(#ringGlow)"/>
+
+  <!-- Lightning bolt centered at 256,248 -->
+  <!-- Bolt approx 120w x 200h, so top-left at 196,148 -->
+  <g filter="url(#boltGlow)">
+    <polygon points="256,148 206,258 244,258 222,348 306,222 264,222 306,148"
+      fill="url(#boltGrad)" opacity="0.97"/>
+  </g>
+
+</svg>

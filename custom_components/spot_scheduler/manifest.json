@@ -1,0 +1,21 @@
+{
+  "domain": "spot_scheduler",
+  "name": "SpotScheduler",
+  "after_dependencies": [
+    "nordpool"
+  ],
+  "codeowners": [
+    "@nstrandm"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "nordpool",
+    "lovelace"
+  ],
+  "documentation": "https://github.com/nstrandm/spot-scheduler",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/nstrandm/spot-scheduler/issues",
+  "requirements": [],
+  "homeassistant": "2025.1.0",
+  "version": "1.8.0"
+}
