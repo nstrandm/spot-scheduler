@@ -128,6 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hour=list(range(TOMORROW_POLL_START_HOUR, 24)),
         minute=poll_minutes,
         second=30,
+        local=True,
     )
     hass.data[DOMAIN][entry.entry_id]["_unload_callbacks"].append(cancel_poll)
 
@@ -140,6 +141,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         _midnight_cb,
         hour=0, minute=0, second=15,
+        local=True,
     )
     hass.data[DOMAIN][entry.entry_id]["_unload_callbacks"].append(cancel_midnight)
 

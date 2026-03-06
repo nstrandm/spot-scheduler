@@ -50,7 +50,7 @@ async def async_setup_entry(
     cancel = async_track_time_change(
         hass,
         lambda _: hass.async_create_task(_apply_schedules(hass, entry, switches)),
-        minute=0, second=30,
+        minute=0, second=30, local=True,
     )
     # Register via entry.async_on_unload so it is always cleaned up,
     # even if _unload_callbacks hasn't been populated yet (race guard).
@@ -122,12 +122,18 @@ async def _apply_schedules(
 ) -> None:
     """Turn devices on/off per schedule at the top of each hour."""
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
+        _LOGGER.warning("_apply_schedules: entry %s not in hass.data, skipping", entry.entry_id)
         return
 
     today   = dt_util.now().date().isoformat()
     hour    = dt_util.now().hour
     sched   = hass.data[DOMAIN][entry.entry_id].get("schedules", {})
     today_s = sched.get(today, {})
+
+    _LOGGER.debug(
+        "_apply_schedules fired: date=%s hour=%d switches=%d today_sched_devices=%s",
+        today, hour, len(switches), list(today_s.keys()),
+    )
 
     for sw in switches:
         dev = sw.device_entity_id
