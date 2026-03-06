@@ -47,22 +47,23 @@ async def async_setup_entry(
         ent_reg.async_remove(stale_entity.entity_id)
 
     # Apply scheduled states at the start of every hour (:00:30)
-    cancel = async_track_time_change(
-        hass,
-        lambda _: hass.async_create_task(_apply_schedules(hass, entry, switches)),
-        minute=0, second=30,
-    )
+    @callback
+    def _hour_cb(_now) -> None:
+        hass.async_create_task(_apply_schedules(hass, entry, switches))
+
+    cancel = async_track_time_change(hass, _hour_cb, minute=0, second=30)
     # Register via entry.async_on_unload so it is always cleaned up,
     # even if _unload_callbacks hasn't been populated yet (race guard).
     entry.async_on_unload(cancel)
 
     # Apply current hour's schedule once HA is fully started (covers restarts
     # mid-hour where the :00:30 trigger hasn't fired yet).
+    @callback
+    def _started_cb(_event) -> None:
+        hass.async_create_task(_apply_schedules(hass, entry, switches))
+
     entry.async_on_unload(
-        hass.bus.async_listen_once(
-            "homeassistant_started",
-            lambda _: hass.async_create_task(_apply_schedules(hass, entry, switches)),
-        )
+        hass.bus.async_listen_once("homeassistant_started", _started_cb)
     )
 
     # Update switch states when schedule changes, and apply immediately

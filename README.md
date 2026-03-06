@@ -6,7 +6,7 @@
 
 SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly electricity prices as a bar chart and lets you click each cell to schedule a device **on** or **off** for that hour. Schedules are stored persistently and executed automatically at the start of each hour.
 
-**Requires:** Home Assistant 2024.12+ with the built-in [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool/).
+**Requires:** Home Assistant 2025.1+ with the built-in [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool/).
 
 ---
 
@@ -45,8 +45,8 @@ Tomorrow's prices in the Nordics are typically published between **13:00–15:00
 
 | Requirement | Version |
 |---|---|
-| Home Assistant | 2024.12.0+ |
-| Nord Pool (built-in) | included in HA 2024.12+ |
+| Home Assistant | 2025.1.0+ |
+| Nord Pool (built-in) | included in HA 2025.1+ |
 | HACS | 1.0+ (for HACS install) |
 
 > **Note:** This integration uses the **built-in** Nord Pool integration, not the old HACS custom component. Make sure Nord Pool is set up under *Settings → Devices & Services* before installing SpotScheduler.

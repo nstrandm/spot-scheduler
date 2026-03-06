@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "SpotScheduler",
-        "description": "Configure SpotScheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2024.12+).",
+        "description": "Configure SpotScheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2025.1+).",
         "data": {
           "name": "Name",
           "nordpool_config_entry": "Nord Pool integration entry",

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "SpotScheduler",
-        "description": "Konfiguroi SpotScheduler ohjaamaan laitteita Nord Pool pörssisähkön hintojen mukaan.\n\nVaatii sisäänrakennetun Nord Pool -integraation (Home Assistant 2024.12+).",
+        "description": "Konfiguroi SpotScheduler ohjaamaan laitteita Nord Pool pörssisähkön hintojen mukaan.\n\nVaatii sisäänrakennetun Nord Pool -integraation (Home Assistant 2025.1+).",
         "data": {
           "name": "Nimi",
           "nordpool_config_entry": "Nord Pool -integraatio",
