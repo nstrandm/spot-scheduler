@@ -15,7 +15,7 @@ SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly el
 - 📊 **Hourly price chart** — 15-minute MTU slots are averaged into hourly prices
 - 🔴 **Expensive hours highlighted** — configurable count, default 3 most expensive per day
 - 📅 **Day min / max price** shown in the card header
-- ✅ **Per-device hourly toggle** — On / Off / Unset for every device and hour
+- ✅ **Per-device hourly toggle** — On / Off for every device and hour
 - 📆 **Multi-day view** — navigate to tomorrow's schedule when prices are available (up to 7 days back)
 - 💾 **Persistent schedules** — saved to HA storage, survive restarts, included in HA backups
 - ⏰ **Automatic execution** — devices are turned on/off at the start of each scheduled hour
@@ -68,9 +68,8 @@ The Lovelace card JS resource is registered automatically when the integration s
 ### Manual installation
 
 1. Copy the `custom_components/spot_scheduler/` folder to your HA `config/custom_components/` directory
-2. Copy the `www/spot-scheduler-card.js` file to `config/custom_components/spot_scheduler/www/`
-3. **Restart Home Assistant**
-4. Go to **Settings → Devices & Services → + Add integration → SpotScheduler**
+2. **Restart Home Assistant**
+3. Go to **Settings → Devices & Services → + Add integration → SpotScheduler**
 
 The card resource is registered automatically on first startup. If auto-registration fails (e.g. YAML-mode dashboards), add the resource manually:
 
@@ -146,8 +145,7 @@ expensive_hours: 3
 3. The **most expensive hours** are highlighted with a red border
 4. **Click a cell** to toggle a device for that hour:
    - **✓ blue** — device will turn **on** at the start of that hour
-   - **✕ grey** — device will turn **off** at the start of that hour
-   - **empty** — not scheduled (device keeps its current state)
+   - **— grey** — device will turn **off** at the start of that hour (default for all hours)
 5. Use **◀ ▶** to navigate between days (up to 7 days back, 1 day forward)
 
 ---

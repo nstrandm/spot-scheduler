@@ -178,21 +178,21 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 # ── Frontend resource registration ─────────────────────────────────────────────
 
-CARD_URL = f"/hacsfiles/{DOMAIN}/spot-scheduler-card.js"
-CARD_URL_FALLBACK = f"/local/community/{DOMAIN}/www/spot-scheduler-card.js"
+CARD_URL = f"/api/{DOMAIN}/static/spot-scheduler-card.js"
 
 async def _register_frontend(hass: HomeAssistant) -> None:
-    """Register the Lovelace card JS resource once."""
+    """Register the Lovelace card JS resource once.
+
+    HACS serves integration files under custom_components/, not /hacsfiles/.
+    We register a static path ourselves so the card works regardless of
+    whether the integration was installed via HACS or manually.
+    """
     if hass.data.get(f"{DOMAIN}_frontend_registered"):
         return
 
-    # Locate www/ relative to this file:
-    # __file__ = .../custom_components/spot_scheduler/__init__.py
-    # www/     = .../custom_components/spot_scheduler/www/
     import pathlib
-    integration_dir = pathlib.Path(__file__).parent
-    static_path = str(integration_dir / "www")
-    static_url = f"/api/{DOMAIN}/static"
+    static_path = str(pathlib.Path(__file__).parent / "www")
+    static_url  = f"/api/{DOMAIN}/static"
 
     try:
         from homeassistant.components.http import StaticPathConfig
@@ -205,24 +205,19 @@ async def _register_frontend(hass: HomeAssistant) -> None:
         except Exception as exc:
             _LOGGER.warning("Could not register static path: %s", exc)
 
-    # Register as a Lovelace resource so users don't have to manually add it.
-    # This requires the lovelace component (always present in HA).
     try:
         from homeassistant.components.lovelace.resources import (
             ResourceStorageCollection,
         )
         resources: ResourceStorageCollection | None = hass.data.get("lovelace_resources")
         if resources is not None:
-            # Check if already registered
-            url = f"/api/{DOMAIN}/static/spot-scheduler-card.js"
             existing = [
                 r for r in resources.async_items()
-                if r.get("url", "").rstrip("?v=") == url.rstrip("?v=")
-                or DOMAIN in r.get("url", "")
+                if DOMAIN in r.get("url", "")
             ]
             if not existing:
-                await resources.async_create_item({"res_type": "module", "url": url})
-                _LOGGER.info("Registered Lovelace resource: %s", url)
+                await resources.async_create_item({"res_type": "module", "url": CARD_URL})
+                _LOGGER.info("Registered Lovelace resource: %s", CARD_URL)
             else:
                 _LOGGER.debug("Lovelace resource already registered.")
         else:
