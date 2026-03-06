@@ -103,14 +103,17 @@ async def _apply_schedule_for_device(
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
         return
 
+    domain = device_id.split(".")[0]
     if enabled:
         await hass.services.async_call(
-            "homeassistant", "turn_on", {"entity_id": device_id}, blocking=False
+            domain, "turn_on", {}, blocking=False,
+            target={"entity_id": device_id},
         )
         _LOGGER.info("Schedule (immediate): ON  %s", device_id)
     else:
         await hass.services.async_call(
-            "homeassistant", "turn_off", {"entity_id": device_id}, blocking=False
+            domain, "turn_off", {}, blocking=False,
+            target={"entity_id": device_id},
         )
         _LOGGER.info("Schedule (immediate): OFF %s", device_id)
 
@@ -139,14 +142,17 @@ async def _apply_schedules(
         dev = sw.device_entity_id
         state = today_s.get(dev, {}).get(str(hour))
 
+        domain = dev.split(".")[0]
         if state is True:
             await hass.services.async_call(
-                "homeassistant", "turn_on", {"entity_id": dev}, blocking=False
+                domain, "turn_on", {}, blocking=False,
+                target={"entity_id": dev},
             )
             _LOGGER.info("Schedule: ON  %s  h=%d", dev, hour)
         elif state is False:
             await hass.services.async_call(
-                "homeassistant", "turn_off", {"entity_id": dev}, blocking=False
+                domain, "turn_off", {}, blocking=False,
+                target={"entity_id": dev},
             )
             _LOGGER.info("Schedule: OFF %s  h=%d", dev, hour)
         # None/unset → leave device as-is
