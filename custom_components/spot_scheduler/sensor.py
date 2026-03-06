@@ -63,7 +63,7 @@ async def async_setup_entry(
             s.async_schedule_update_ha_state()
 
     entry.async_on_unload(
-        async_track_time_change(hass, _on_new_hour, minute=0, second=5, local=True)
+        async_track_time_change(hass, _on_new_hour, minute=0, second=5)
     )
 
 

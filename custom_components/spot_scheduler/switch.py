@@ -50,7 +50,7 @@ async def async_setup_entry(
     cancel = async_track_time_change(
         hass,
         lambda _: hass.async_create_task(_apply_schedules(hass, entry, switches)),
-        minute=0, second=30, local=True,
+        minute=0, second=30,
     )
     # Register via entry.async_on_unload so it is always cleaned up,
     # even if _unload_callbacks hasn't been populated yet (race guard).
