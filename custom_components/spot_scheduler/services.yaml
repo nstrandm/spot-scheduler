@@ -1,6 +1,6 @@
 set_device_schedule:
   name: Set device schedule
-  description: Set the on/off schedule for a specific device and hour.
+  description: Set the schedule state for a specific device and hour.
   fields:
     date:
       name: Date
@@ -34,15 +34,17 @@ set_device_schedule:
             - input_boolean
     enabled:
       name: Enabled
-      description: Whether the device should be on (true) or off (false) for this hour.
-      required: true
+      description: >
+        true = turn on, false = turn off, omit/null = unset (don't touch).
+        When unset follows an on-hour, the device is turned off automatically.
+      required: false
       example: true
       selector:
         boolean:
 
 refresh_prices:
   name: Refresh prices
-  description: Manually trigger a price fetch from Nord Pool. Fetches for all configured SpotScheduler instances.
+  description: Manually trigger a price fetch from Nord Pool. Fetches for all configured Spot Scheduler instances.
   fields:
     date:
       name: Date
@@ -51,3 +53,20 @@ refresh_prices:
       example: "2025-03-05"
       selector:
         date:
+
+apply_schedules_now:
+  name: Apply schedules now
+  description: >
+    Immediately apply the current hour's schedule to all managed devices —
+    exactly like the automatic trigger at :00:05, but callable at any time.
+    Useful for development and testing.
+  fields:
+    entry_id:
+      name: Entry ID
+      description: >
+        Limit to a specific SpotScheduler config entry (optional).
+        Leave empty to trigger all instances.
+      required: false
+      example: "abc123def456"
+      selector:
+        text:

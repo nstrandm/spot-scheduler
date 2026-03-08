@@ -33,3 +33,10 @@ Thumbs.db
 
 # Home Assistant config (for local testing)
 config/
+
+# Local planning notes
+PLAN.MD
+TODO.md
+
+sync.bat
+sync.ps1

@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "SpotScheduler",
-        "description": "Configure SpotScheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2025.1+).",
+        "title": "Spot Scheduler",
+        "description": "Configure Spot Scheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2025.1+).",
         "data": {
           "name": "Name",
           "nordpool_config_entry": "Nord Pool integration entry",
@@ -32,32 +32,51 @@
   "options": {
     "step": {
       "init": {
-        "title": "SpotScheduler settings",
+        "title": "Spot Scheduler",
+        "description": "Select the Nord Pool integration and the devices to control. Price thresholds, auto-select, and expensive hours settings are on the device Configuration page.",
         "data": {
-          "devices": "Devices to schedule",
-          "expensive_hours_count": "Expensive hours (highlighted in red)",
           "nordpool_config_entry": "Nord Pool integration",
-          "price_threshold_low": "Cheap price limit (green)",
-          "price_threshold_high": "Expensive price limit (red)"
+          "devices": "Devices to schedule"
         },
         "data_description": {
-          "devices": "Choose which devices can be scheduled on/off by hour.",
-          "expensive_hours_count": "This many most expensive hours per day will be outlined in red.",
-          "nordpool_config_entry": "Select which Nord Pool instance provides the price data.",
-          "price_threshold_low": "Prices below this are shown in green. In cents per kWh.",
-          "price_threshold_high": "Prices above this are shown in red. In cents per kWh."
+          "nordpool_config_entry": "Select which Nord Pool instance provides hourly price data.",
+          "devices": "Choose which devices Spot Scheduler can schedule on/off by hour."
         }
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "price_threshold_low": {
+        "name": "Min price limit"
+      },
+      "price_threshold_high": {
+        "name": "Max price limit"
+      },
+      "auto_select_hours": {
+        "name": "Cheapest hours"
+      },
+      "expensive_hours": {
+        "name": "Expensive hours"
+      }
+    },
+    "switch": {
+      "auto_select": {
+        "name": "Cheapest hours auto-select"
+      },
+      "block_expensive_hours": {
+        "name": "Expensive hours turn off"
       }
     }
   },
   "issues": {
     "nordpool_integration_missing": {
       "title": "Nord Pool integration removed",
-      "description": "The Nord Pool integration that SpotScheduler depends on can no longer be found. Please re-add Nord Pool under Settings → Devices & Services, then reload SpotScheduler."
+      "description": "The Nord Pool integration that Spot Scheduler depends on can no longer be found. Please re-add Nord Pool under Settings → Devices & Services, then reload Spot Scheduler."
     },
     "nordpool_unavailable": {
       "title": "Nord Pool prices unavailable",
-      "description": "SpotScheduler could not fetch today's electricity prices. The Nord Pool API may be temporarily unavailable. Prices will be retried automatically.\n\nYou can also trigger a manual refresh via **Services → spot_scheduler.refresh_prices**."
+      "description": "Spot Scheduler could not fetch today's electricity prices. The Nord Pool API may be temporarily unavailable. Prices will be retried automatically.\n\nYou can also trigger a manual refresh via **Services → spot_scheduler.refresh_prices**."
     }
   }
 }

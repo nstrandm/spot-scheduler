@@ -4,11 +4,16 @@ DOMAIN = "spot_scheduler"
 STORAGE_KEY = f"{DOMAIN}.schedules"
 STORAGE_VERSION = 1
 
+# Increment this whenever the card JS changes to force browser cache refresh
+CARD_VERSION = "4"
+
 CONF_NORDPOOL_CONFIG_ENTRY = "nordpool_config_entry"
 CONF_DEVICES = "devices"
 CONF_EXPENSIVE_HOURS_COUNT = "expensive_hours_count"
+CONF_AUTO_SELECT_HOURS    = "auto_select_hours"
 
-DEFAULT_EXPENSIVE_HOURS = 3
+DEFAULT_EXPENSIVE_HOURS   = 3
+DEFAULT_AUTO_SELECT_HOURS = 0   # 0 = disabled
 
 # Price color thresholds (EUR/kWh cents) – 0 means "use relative scaling"
 CONF_PRICE_THRESHOLD_LOW = "price_threshold_low"
@@ -27,6 +32,10 @@ ISSUE_NORDPOOL_UNAVAILABLE = "nordpool_unavailable"
 TOMORROW_POLL_INTERVAL_MINUTES = 15
 TOMORROW_POLL_START_HOUR = 13   # don't bother polling before this local hour
 
-# Retry logic for price fetching
-PRICE_FETCH_RETRY_COUNT = 3
-PRICE_FETCH_RETRY_DELAY_SECONDS = 30
+# Option: auto-select cheapest hours (global on/off toggle)
+CONF_AUTO_SELECT_ENABLED = "auto_select_enabled"
+DEFAULT_AUTO_SELECT_ENABLED = True  # on by default; count=0 still disables it
+
+# Option: auto-set expensive hours to OFF when prices arrive
+CONF_BLOCK_EXPENSIVE_HOURS = "block_expensive_hours"
+DEFAULT_BLOCK_EXPENSIVE = False

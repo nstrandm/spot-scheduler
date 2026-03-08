@@ -39,6 +39,25 @@ def parse_hourly_prices(
     return {h: round(sum(v) / len(v), 5) for h, v in hourly.items()}
 
 
+def cheapest_hours(prices: dict[int, float], count: int) -> set[int]:
+    """
+    Return the `count` cheapest hours from a price dict.
+
+    Parameters
+    ----------
+    prices : dict mapping hour (0-23) to price.
+    count : how many lowest-priced hours to return.
+
+    Returns
+    -------
+    set of hour integers.
+    """
+    if not prices or count <= 0:
+        return set()
+    sorted_hours = sorted(prices, key=lambda h: prices[h])
+    return set(sorted_hours[:count])
+
+
 def expensive_hours(prices: dict[int, float], count: int) -> set[int]:
     """
     Return the `count` most expensive hours from a price dict.
@@ -86,14 +105,20 @@ def set_schedule(
     target_date: str,
     device_id: str,
     hour: int,
-    enabled: bool,
+    enabled: bool | None,
 ) -> None:
-    """Set a single hour slot in the schedule dict (mutates in place)."""
-    (
-        schedules
-        .setdefault(target_date, {})
-        .setdefault(device_id, {})
-    )[str(hour)] = enabled
+    """Set a single hour slot in the schedule dict (mutates in place).
+
+    Pass enabled=None to clear the slot (unset / "don't touch").
+    """
+    if enabled is None:
+        schedules.get(target_date, {}).get(device_id, {}).pop(str(hour), None)
+    else:
+        (
+            schedules
+            .setdefault(target_date, {})
+            .setdefault(device_id, {})
+        )[str(hour)] = enabled
 
 
 def get_schedule(

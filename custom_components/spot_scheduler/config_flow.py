@@ -18,15 +18,12 @@ from .const import (
     CONF_DEVICES,
     CONF_EXPENSIVE_HOURS_COUNT,
     DEFAULT_EXPENSIVE_HOURS,
-    CONF_PRICE_THRESHOLD_LOW,
-    CONF_PRICE_THRESHOLD_HIGH,
-    DEFAULT_PRICE_THRESHOLD_LOW,
-    DEFAULT_PRICE_THRESHOLD_HIGH,
 )
 
 
 def _nordpool_entries(hass):
     return hass.config_entries.async_entries(NORDPOOL_DOMAIN)
+
 
 
 class SpotSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -64,7 +61,7 @@ class SpotSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     SelectSelectorConfig(options=options, mode=SelectSelectorMode.LIST)
                 ),
                 vol.Optional(CONF_EXPENSIVE_HOURS_COUNT, default=DEFAULT_EXPENSIVE_HOURS): NumberSelector(
-                    NumberSelectorConfig(min=1, max=12, step=1, mode=NumberSelectorMode.SLIDER)
+                    NumberSelectorConfig(min=0, max=12, step=1, mode=NumberSelectorMode.SLIDER)
                 ),
             }),
         )
@@ -103,66 +100,42 @@ class SpotSchedulerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
-    """Options flow – modify devices, expensive-hours threshold, and Nord Pool entry."""
+    """Options flow – Nord Pool integration and device list only.
+
+    Other settings (price thresholds, expensive hours, per-device auto-select)
+    are exposed as EntityCategory.CONFIG number entities on the device info page.
+    """
 
     async def async_step_init(self, user_input=None):
-        if user_input is not None:
-            if "expensive_hours_count" in user_input:
-                user_input["expensive_hours_count"] = int(user_input["expensive_hours_count"])
-            if CONF_PRICE_THRESHOLD_LOW in user_input:
-                user_input[CONF_PRICE_THRESHOLD_LOW] = float(user_input[CONF_PRICE_THRESHOLD_LOW])
-            if CONF_PRICE_THRESHOLD_HIGH in user_input:
-                user_input[CONF_PRICE_THRESHOLD_HIGH] = float(user_input[CONF_PRICE_THRESHOLD_HIGH])
-            return self.async_create_entry(title="", data=user_input)
-
-        # Merge data + options so existing selections are pre-filled
         merged = {**self.config_entry.data, **self.config_entry.options}
 
-        # Build Nord Pool entry options
+        if user_input is not None:
+            # Only store the fields from this form + preserve existing options
+            # (number entity writes etc.) – avoid duplicating entry.data keys.
+            new_opts = {**self.config_entry.options, **user_input}
+            return self.async_create_entry(title="", data=new_opts)
+
         np_entries = _nordpool_entries(self.hass)
         np_options = [
             SelectOptionDict(value=e.entry_id, label=e.title) for e in np_entries
         ]
-
-        schema = {
-            vol.Required(CONF_DEVICES, default=merged.get(CONF_DEVICES, [])): EntitySelector(
-                EntitySelectorConfig(
-                    domain=["switch", "light", "climate", "input_boolean"],
-                    multiple=True,
-                )
-            ),
-            vol.Optional(
-                CONF_EXPENSIVE_HOURS_COUNT,
-                default=merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS),
-            ): NumberSelector(
-                NumberSelectorConfig(min=1, max=12, step=1, mode=NumberSelectorMode.SLIDER)
-            ),
-            vol.Optional(
-                CONF_PRICE_THRESHOLD_LOW,
-                default=merged.get(CONF_PRICE_THRESHOLD_LOW, DEFAULT_PRICE_THRESHOLD_LOW),
-            ): NumberSelector(
-                NumberSelectorConfig(min=0, max=50, step=0.5, mode=NumberSelectorMode.SLIDER,
-                                     unit_of_measurement="c/kWh")
-            ),
-            vol.Optional(
-                CONF_PRICE_THRESHOLD_HIGH,
-                default=merged.get(CONF_PRICE_THRESHOLD_HIGH, DEFAULT_PRICE_THRESHOLD_HIGH),
-            ): NumberSelector(
-                NumberSelectorConfig(min=0, max=50, step=0.5, mode=NumberSelectorMode.SLIDER,
-                                     unit_of_measurement="c/kWh")
-            ),
-        }
-
-        # Only show Nord Pool selector if there are entries to choose from
-        if np_options:
-            schema[vol.Required(
-                CONF_NORDPOOL_CONFIG_ENTRY,
-                default=merged.get(CONF_NORDPOOL_CONFIG_ENTRY, np_entries[0].entry_id if np_entries else ""),
-            )] = SelectSelector(
-                SelectSelectorConfig(options=np_options, mode=SelectSelectorMode.LIST)
-            )
+        devices: list[str] = merged.get(CONF_DEVICES, [])
 
         return self.async_show_form(
             step_id="init",
-            data_schema=vol.Schema(schema),
+            data_schema=vol.Schema({
+                vol.Optional(
+                    CONF_NORDPOOL_CONFIG_ENTRY,
+                    default=merged.get(CONF_NORDPOOL_CONFIG_ENTRY,
+                                       np_entries[0].entry_id if np_entries else ""),
+                ): SelectSelector(
+                    SelectSelectorConfig(options=np_options, mode=SelectSelectorMode.LIST)
+                ),
+                vol.Required(CONF_DEVICES, default=devices): EntitySelector(
+                    EntitySelectorConfig(
+                        domain=["switch", "light", "climate", "input_boolean"],
+                        multiple=True,
+                    )
+                ),
+            }),
         )

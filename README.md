@@ -1,10 +1,10 @@
-# SpotScheduler
+# Spot Scheduler
 
-> Manually schedule Home Assistant devices by hour based on Nord Pool spot electricity prices.
+> Run your appliances when electricity is cheapest — Nord Pool-powered scheduling that automatically picks the cheapest hours and executes them on time.
 
-![SpotScheduler card](images/card-screenshot.png)
+![Spot Scheduler card](images/card-screenshot.png)
 
-SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly electricity prices as a bar chart and lets you click each cell to schedule a device **on** or **off** for that hour. Schedules are stored persistently and executed automatically at the start of each hour.
+Spot Scheduler adds a Lovelace card that shows hourly electricity prices as a bar chart and lets you click each cell to schedule a device **on**, **off**, or leave it **unset** (don't touch) for that hour. Schedules are stored persistently and executed automatically at the start of each hour.
 
 **Requires:** Home Assistant 2025.1+ with the built-in [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool/).
 
@@ -15,8 +15,10 @@ SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly el
 - 📊 **Hourly price chart** — 15-minute MTU slots are averaged into hourly prices
 - 🔴 **Expensive hours highlighted** — configurable count, default 3 most expensive per day
 - 📅 **Day min / max price** shown in the card header
-- ✅ **Per-device hourly toggle** — On / Off for every device and hour
-- 📆 **Multi-day view** — navigate to tomorrow's schedule when prices are available (up to 7 days back)
+- ✅ **Three-state per-device toggle** — On / Off / Unset (don't touch) for every device and hour
+- 🤖 **Auto-select cheapest hours** — automatically marks the N cheapest hours as ON when prices arrive
+- 🚫 **Block expensive hours** — automatically marks the N most expensive hours as OFF
+- 📆 **Multi-day view** — navigate up to 6 days ahead to pre-schedule devices; also 1 day back (yesterday)
 - 💾 **Persistent schedules** — saved to HA storage, survive restarts, included in HA backups
 - ⏰ **Automatic execution** — devices are turned on/off at the start of each scheduled hour
 - 🌐 **Multilingual UI** — follows your HA profile language setting (English / Finnish)
@@ -27,7 +29,7 @@ SpotScheduler adds a Lovelace card that shows today's (and tomorrow's) hourly el
 
 ## How price fetching works
 
-SpotScheduler uses the Nord Pool integration's `nordpool.get_prices_for_date` service action:
+Spot Scheduler uses the Nord Pool integration's `nordpool.get_prices_for_date` service action:
 
 | Event | Action |
 |---|---|
@@ -38,6 +40,7 @@ SpotScheduler uses the Nord Pool integration's `nordpool.get_prices_for_date` se
 
 Tomorrow's prices in the Nordics are typically published between **13:00–15:00 CET** (14:00–16:00 EET in Finland). SpotScheduler polls for them every 15 minutes starting at 13:00 local time and also reacts to any Nord Pool sensor update. Once tomorrow's prices are fetched, polling stops until the next day.
 
+Auto-select and block-expensive logic runs **only when prices first arrive** for a date — not on HA restarts or reloads — to avoid overwriting manual schedules or changing device state mid-hour.
 
 ---
 
@@ -59,7 +62,7 @@ Tomorrow's prices in the Nordics are typically published between **13:00–15:00
 
 1. Open HACS → **Integrations** → ⋮ → **Custom repositories**
 2. Add `https://github.com/nstrandm/spot-scheduler` → category **Integration**
-3. Find **SpotScheduler** and click **Download**
+3. Find **Spot Scheduler** and click **Download**
 4. **Restart Home Assistant**
 5. Go to **Settings → Devices & Services → + Add integration → SpotScheduler**
 
@@ -86,22 +89,35 @@ The card resource is registered automatically on first startup. If auto-registra
 
 ### Settings
 
-![Config flow ](images/config-flow.png)
+![Config flow](images/config-flow.png)
 
 Pick devices from HA's entity list. Supported domains: `switch`, `light`, `climate`, `input_boolean`.
 
-Choose the Nord Pool integration entry, give the integration a name, and set how many of the most expensive hours to highlight in red. Set limits for cheap and expensive prices.
+Choose the Nord Pool integration entry, give the integration a name, and set how many of the most expensive hours to highlight in red.
+
+### Configuration entities
+
+After setup, SpotScheduler adds the following entities under **Settings → Devices & Services → Spot Scheduler** (Configuration section):
+
+| Entity | Description |
+|---|---|
+| **Cheapest hours** | How many cheapest hours per day to auto-select as ON (0 = disabled) |
+| **Cheapest hours auto-select** | Switch to enable/disable auto-select globally |
+| **Expensive hours** | How many most-expensive hours to highlight in red |
+| **Expensive hours turn off** | Switch to automatically mark expensive hours as OFF |
+| **Max price limit** | Prices above this (¢/kWh) are coloured red in the bar chart |
+| **Min price limit** | Prices below this (¢/kWh) are coloured green in the bar chart |
 
 ### Changing settings later
 
-Go to **Settings → Devices & Services → SpotScheduler → Configure** to modify devices and the expensive hours threshold at any time. Changes take effect immediately after saving.
+Go to **Settings → Devices & Services → Spot Scheduler → Configure** to modify devices and the expensive hours threshold at any time. Changes take effect immediately after saving.
 
 ---
 
 ## Adding the card to your dashboard
 
 1. Open your dashboard → **Edit** (pencil icon) → **+ Add card**
-2. Search for **SpotScheduler** in the card picker, or choose **Manual** and paste:
+2. Search for **Spot Scheduler** in the card picker, or choose **Manual** and paste:
 
 **Minimal — uses all settings from the integration:**
 
@@ -121,6 +137,7 @@ device_names:
   switch.washing_machine: "Washing machine"
   switch.ev_charger: "EV charger"
 expensive_hours: 3
+show_price_labels: true
 ```
 
 ### Card options
@@ -131,10 +148,15 @@ expensive_hours: 3
 | `device_names` | map | `{}` | Custom display names per entity ID, e.g. `switch.foo: "My device"`. Falls back to HA friendly name. |
 | `expensive_hours` | int | auto-detected | Most expensive hours to highlight in red. If omitted, uses the value from integration settings. |
 | `title` | string | `"SpotScheduler"` | Card title (overrides translated default) |
+| `show_price_labels` | bool | `false` | Show the cent price on top of each price bar |
 | `label_width` | int | `120` | Width in px of the device name column |
 | `status_entity` | string | auto-detected | Override the sensor used to read prices/schedules |
 
 > **Note:** `devices` and `expensive_hours` are read from the integration automatically if not set in the card YAML. Values explicitly set in the card YAML always take priority over integration settings. The card reads schedule data from the integration — it does not control devices on its own.
+
+### Recommended dashboard layout
+
+Use the **Masonry** layout (the default). On mobile, Masonry automatically uses a single full-width column, giving the card maximum width for the 24-column schedule grid.
 
 ---
 
@@ -143,23 +165,22 @@ expensive_hours: 3
 1. **Prices for tomorrow** appear automatically after Nord Pool publishes them (typically ~14:00–16:00 EET for Finland)
 2. Open your dashboard — the bar chart shows hourly average prices
 3. The **most expensive hours** are highlighted with a red border
-4. **Click a cell** to toggle a device for that hour:
-   - **✓ blue** — device will turn **on** at the start of that hour
-   - **— grey** — device will turn **off** at the start of that hour (default for all hours)
-5. Use **◀ ▶** to navigate between days (up to 7 days back, 1 day forward)
+4. **Click a cell** to cycle through three states:
+   - **✔ blue** — device will turn **on** at the start of that hour
+   - **✕ grey** — device will turn **off** at the start of that hour
+   - **faint** — **unset** / don't touch — SpotScheduler leaves the device in whatever state it's in
+5. Use **◀ ▶** to navigate between days (1 day back, up to 6 days forward)
+6. Future days (beyond tomorrow) show the schedule grid without price bars — you can still pre-set manual schedules
 
 ---
 
-## Sensors created
+## Sensors
 
 | Entity | Description |
 |---|---|
-| `sensor.spotscheduler_current_price` | Current hour average price (EUR/kWh) |
-| `sensor.spotscheduler_min_price` | Today's lowest hourly price |
-| `sensor.spotscheduler_max_price` | Today's highest hourly price |
 | `sensor.spotscheduler_schedule_status` | Number of ON-hours scheduled today; attributes include full price and schedule data used by the card |
 
-Each sensor belongs to the SpotScheduler device and updates automatically when prices arrive or schedules change.
+The sensor updates automatically when prices arrive or schedules change. Prices and schedules for all available dates are exposed as sensor attributes and consumed by the card.
 
 ---
 
@@ -175,7 +196,7 @@ data:
   date: "2026-03-05"          # ISO date, defaults to today
   hour: 2                     # 0–23
   device_id: switch.ev_charger
-  enabled: true               # true = on, false = off
+  enabled: true               # true = on, false = off, omit = unset (clear)
 ```
 
 ### `spot_scheduler.refresh_prices`
@@ -188,7 +209,19 @@ data:
   date: "2026-03-05"          # defaults to today
 ```
 
-These services are visible with full field descriptions in **Developer Tools → Services**.
+### `spot_scheduler.apply_schedules_now`
+
+Immediately apply the current hour's schedule to all managed devices — exactly like the automatic trigger at `:00:05`, but callable at any time. Useful during development and testing.
+
+```yaml
+service: spot_scheduler.apply_schedules_now
+data: {}                      # no parameters required
+# Optional: limit to one SpotScheduler instance
+# data:
+#   entry_id: "abc123def456"
+```
+
+All three services are visible with full field descriptions in **Developer Tools → Services**.
 
 ---
 
@@ -204,6 +237,7 @@ These services are visible with full field descriptions in **Developer Tools →
 
 - Verify the integration is running: **Settings → Devices & Services → SpotScheduler**
 - Clear browser cache (`Ctrl+Shift+R`)
+- On the HA mobile app: **Settings → Companion App → Reset frontend cache**
 - If using YAML-mode dashboards, add the resource manually (see Installation section)
 
 ### "Nord Pool integration removed" Repairs alert
@@ -216,7 +250,7 @@ Check that the device entity IDs in your card config match those in the integrat
 
 ### Devices don't turn on/off at the scheduled time
 
-- SpotScheduler sends `homeassistant.turn_on` / `turn_off` at `HH:00:30` each hour
+- SpotScheduler sends `homeassistant.turn_on` / `turn_off` at `HH:00:05` each hour
 - Verify the target device responds to these service calls in Developer Tools
 - Check the HA log for `Schedule: ON` / `Schedule: OFF` messages
 

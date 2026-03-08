@@ -1,11 +1,11 @@
-// SpotScheduler – Lovelace Custom Card
+// Spot Scheduler – Lovelace Custom Card
 // Language is taken from hass.locale.language (set in HA user profile)
 // Supported: en, fi  |  Falls back to English for unknown languages.
 
 const TRANSLATIONS = {
   en: {
-    title: "SpotScheduler",
-    subtitle: "Hourly device schedule · Nord Pool spot prices",
+    title: "Spot Scheduler",
+    subtitle: "Schedule cheapest hours automatically · Nord Pool spot prices",
     prices_note: "Prices fetched automatically when available",
     prices_pending: "⏳ Waiting for today's prices from Nord Pool",
     on: "On",
@@ -13,6 +13,7 @@ const TRANSLATIONS = {
     unset: "–",
     legend_on: "On",
     legend_off: "Off",
+    legend_unset: "Don't touch",
     legend_expensive: "Expensive (top {n})",
     legend_current: "Current hour",
     stat_min: "Min",
@@ -20,10 +21,19 @@ const TRANSLATIONS = {
     price_row_label: "Avg price (€/kWh) · 15 min slots → hourly average",
     no_devices: "No devices configured.",
     save_hint: "✓ Changes saved automatically to Home Assistant",
+    // Editor labels
+    editor_title:             "Title (empty = default)",
+    editor_expensive_hours:   "Expensive hours highlight (0 = none)",
+    editor_show_price_labels: "Show cent price on each bar",
+    editor_label_width:       "Device name column width (px)",
+    editor_status_entity:     "Status sensor (empty = auto-detect)",
+    editor_device_names:      "Device names on card",
+    editor_no_devices:        "No devices detected yet. Save the card first.",
+    editor_device_placeholder: "Friendly name…",
   },
   fi: {
-    title: "SpotScheduler",
-    subtitle: "Tuntiaikataulu · Nord Pool pörssisähkö",
+    title: "Spot Scheduler",
+    subtitle: "Halvimmat tunnit automaattisesti · Nord Pool pörssisähkö",
     prices_note: "Hinnat haetaan automaattisesti kun saatavilla",
     prices_pending: "⏳ Odotetaan päivän hintoja Nord Poolilta",
     on: "Päällä",
@@ -31,6 +41,7 @@ const TRANSLATIONS = {
     unset: "–",
     legend_on: "Päällä",
     legend_off: "Pois",
+    legend_unset: "Älä koske",
     legend_expensive: "Kallis ({n} kalleinta)",
     legend_current: "Nykyinen tunti",
     stat_min: "Min",
@@ -38,6 +49,15 @@ const TRANSLATIONS = {
     price_row_label: "Tunnin keskihinta (€/kWh) · 15 min arvoista laskettu",
     no_devices: "Ei laitteita konfiguroitu.",
     save_hint: "✓ Muutokset tallentuvat automaattisesti Home Assistantiin",
+    // Editor labels
+    editor_title:             "Otsikko (tyhjä = oletusarvo)",
+    editor_expensive_hours:   "Kalliiden tuntien korostus (0 = ei mitään)",
+    editor_show_price_labels: "Näytä senttihinta jokaisessa palkissa",
+    editor_label_width:       "Laitenimen sarakeleveys (px)",
+    editor_status_entity:     "Status-sensori (tyhjä = automaattinen)",
+    editor_device_names:      "Laitteiden nimet kortilla",
+    editor_no_devices:        "Laitteita ei havaittu. Tallenna kortti ensin.",
+    editor_device_placeholder: "Kutsumanimi…",
   },
 };
 
@@ -65,8 +85,6 @@ const STYLES = `
   .stat-label { font-size:11px; color:var(--secondary-text-color);
     text-transform:uppercase; letter-spacing:.8px; }
   .stat-value { font-size:15px; font-weight:700; margin-top:2px; }
-  .stat-value.min { color:var(--success-color, #4ade80); }
-  .stat-value.max { color:var(--error-color, #f87171); }
   .date-nav { display:flex; align-items:center; gap:9px; margin-bottom:14px; }
   .date-btn { background:var(--secondary-background-color); border:none;
     color:var(--secondary-text-color); width:32px; height:32px;
@@ -82,14 +100,13 @@ const STYLES = `
   .leg-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
   .price-section { margin-bottom:14px; }
   .price-lbl { font-size:12px; color:var(--disabled-text-color); margin-bottom:5px; }
-  .bars { display:flex; align-items:flex-end; gap:2px; height:80px; }
-  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .bars { display:flex; align-items:flex-end; gap:2px; height:100px; }
+  .bar-col { flex:1; min-width:28px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
-  .bar-h { font-size:14px; color:var(--disabled-text-color); margin-top:3px; }
-  .bar-h.cur { color:var(--warning-color, #ff9800); font-weight:800; }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
-  .grid-scroll { overflow-x:auto; overflow-y:hidden; }
+  .scroll-wrap { overflow-x:auto; overflow-y:hidden; }
+  .grid-scroll { overflow-x:visible; overflow-y:hidden; }
   .gh { text-align:center; font-size:12px; color:var(--disabled-text-color);
     font-weight:700; padding:2px 0; }
   .gh.cur { color:var(--primary-color); }
@@ -97,7 +114,7 @@ const STYLES = `
     display:flex; align-items:center; padding-right:5px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cell { aspect-ratio:1; border-radius:4px; border:2px solid transparent;
-    display:flex; align-items:center; justify-content:center; margin: 7px;
+    display:flex; align-items:center; justify-content:center; margin: 2px;
     font-size:13px; font-weight:700; cursor:pointer; min-height:24px;
     transition:transform .1s; }
   .cell:hover { transform:scale(1.1); z-index:5; position:relative; }
@@ -106,12 +123,16 @@ const STYLES = `
     box-shadow:0 0 6px color-mix(in srgb, var(--primary-color) 45%, transparent); }
   .cell.off { background:var(--secondary-background-color);
     border-color:var(--divider-color); color:var(--disabled-text-color); }
+  .cell.unset { background:transparent; border-color:var(--divider-color);
+    color:var(--disabled-text-color); opacity:0.35; }
   .cell.exp-cell { border-color:var(--error-color, #f87171) !important; }
   .cell.cur-cell { box-shadow:0 0 0 2.5px var(--warning-color, #ff9800); }
   .no-prices { text-align:center; padding:20px; color:var(--disabled-text-color);
     font-size:13px; }
   .save-hint { text-align:right; font-size:10px; color:var(--disabled-text-color);
     margin-top:11px; font-style:italic; }
+  .bar-price { font-size:9px; color:var(--secondary-text-color); text-align:center;
+    line-height:1.2; min-height:12px; }
 `;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,6 +179,7 @@ class SpotSchedulerCard extends HTMLElement {
       device_names: {},      // optional: { "light.foo": "Custom Name" }
       expensive_hours: 3,    // populated from sensor if not in config
       label_width: 120,
+      show_price_labels: false,
       ...config,
       // Track whether values came from YAML so sensor doesn't override them
       _devicesFromYaml: !!(config.devices?.length),
@@ -201,9 +223,17 @@ class SpotSchedulerCard extends HTMLElement {
       const day = String(d.getDate()).padStart(2, "0");
       return `${y}-${m}-${day}`;
     })();
+    const yesterday = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    })();
 
-    const todayPrices    = attrs.prices ?? {};
-    const tomorrowPrices = attrs.prices_tomorrow ?? {};
+    const todayPrices     = attrs.prices ?? {};
+    const tomorrowPrices  = attrs.prices_tomorrow ?? {};
+    const yesterdayPrices = attrs.prices_yesterday ?? {};
 
     if (Object.keys(todayPrices).length) {
       this._prices[today] = {};
@@ -215,11 +245,19 @@ class SpotSchedulerCard extends HTMLElement {
       for (const [h, v] of Object.entries(tomorrowPrices))
         this._prices[tomorrow][parseInt(h)] = v;
     }
-    if (attrs.schedules && Object.keys(attrs.schedules).length) {
-      this._schedules[today] = attrs.schedules;
+    if (Object.keys(yesterdayPrices).length) {
+      this._prices[yesterday] = {};
+      for (const [h, v] of Object.entries(yesterdayPrices))
+        this._prices[yesterday][parseInt(h)] = v;
     }
-    if (attrs.schedules_tomorrow && Object.keys(attrs.schedules_tomorrow).length) {
-      this._schedules[tomorrow] = attrs.schedules_tomorrow;
+    if (attrs.schedules !== undefined) {
+      this._schedules[today] = attrs.schedules ?? {};
+    }
+    if (attrs.schedules_tomorrow !== undefined) {
+      this._schedules[tomorrow] = attrs.schedules_tomorrow ?? {};
+    }
+    if (attrs.schedules_yesterday !== undefined) {
+      this._schedules[yesterday] = attrs.schedules_yesterday ?? {};
     }
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
@@ -266,7 +304,7 @@ class SpotSchedulerCard extends HTMLElement {
 
   _expensiveHours() {
     const today = _todayISO();
-    const prices = this._prices[this._selectedDate] ?? this._prices[today] ?? {};
+    const prices = this._prices[this._selectedDate] ?? {};
     const entries = Object.entries(prices);
     if (!entries.length) return new Set();
     const n = this._config.expensive_hours ?? 3;
@@ -281,24 +319,34 @@ class SpotSchedulerCard extends HTMLElement {
 
   _toggleSchedule(deviceId, hour) {
     const cur  = this._isScheduled(deviceId, hour);
-    const next = cur === true ? false : true;
+    // Three-state cycle: null → true → false → null
+    const next = cur === null ? true : cur === true ? false : null;
 
     if (!this._schedules[this._selectedDate]) this._schedules[this._selectedDate] = {};
     if (!this._schedules[this._selectedDate][deviceId]) this._schedules[this._selectedDate][deviceId] = {};
-    this._schedules[this._selectedDate][deviceId][String(hour)] = next;
+    if (next === null) {
+      delete this._schedules[this._selectedDate][deviceId][String(hour)];
+    } else {
+      this._schedules[this._selectedDate][deviceId][String(hour)] = next;
+    }
     this._update();
 
     if (!this._hass) return;
 
-    this._hass.callService("spot_scheduler", "set_device_schedule", {
-      date: this._selectedDate,
-      hour,
-      device_id: deviceId,
-      enabled: next,
-    }).catch(() => {
-      this._schedules[this._selectedDate][deviceId][String(hour)] = cur;
-      this._update();
-    });
+    // Omit 'enabled' when unsetting (null) — service treats absent as "unset"
+    const svcData = { date: this._selectedDate, hour, device_id: deviceId };
+    if (next !== null) svcData.enabled = next;
+
+    this._hass.callService("spot_scheduler", "set_device_schedule", svcData)
+      .catch(() => {
+        // Revert on error
+        if (cur === null) {
+          delete this._schedules[this._selectedDate][deviceId][String(hour)];
+        } else {
+          this._schedules[this._selectedDate][deviceId][String(hour)] = cur;
+        }
+        this._update();
+      });
   }
 
   _priceColor(price) {
@@ -328,7 +376,7 @@ class SpotSchedulerCard extends HTMLElement {
 
   _canGoPrev() {
     const today = new Date(_todayISO() + "T12:00:00");
-    const minDate = new Date(today); minDate.setDate(minDate.getDate() - 7);
+    const minDate = new Date(today); minDate.setDate(minDate.getDate() - 1);
     return new Date(this._selectedDate + "T12:00:00") > minDate;
   }
 
@@ -400,6 +448,7 @@ class SpotSchedulerCard extends HTMLElement {
     const legDefs = [
       { style: "background:var(--primary-color);border:1.5px solid var(--primary-color)", key: "legend_on" },
       { style: "background:var(--secondary-background-color);border:1.5px solid var(--divider-color)", key: "legend_off" },
+      { style: "background:transparent;border:1.5px solid var(--divider-color);opacity:0.4", key: "legend_unset" },
       { style: "background:var(--ha-card-background,var(--card-background-color));border:1.5px solid var(--error-color,#f87171)", key: "legend_expensive" },
       { style: "border:2.5px solid var(--warning-color, #ff9800);background:transparent", key: "legend_current" },
     ];
@@ -417,7 +466,7 @@ class SpotSchedulerCard extends HTMLElement {
     // ── Shared layout constants ─────────────────────────────────────────────
     const devices = this._config.devices ?? [];
     const labelW = this._config.label_width ?? 120;
-    const gridCols = `${labelW}px repeat(24, minmax(18px, 1fr))`;
+    const gridCols = `${labelW}px repeat(24, minmax(28px, 1fr))`;
 
     // ── Price bars ────────────────────────────────────────────────────────────
     const priceSection = _el("div", "price-section");
@@ -432,18 +481,29 @@ class SpotSchedulerCard extends HTMLElement {
     const barEls = [];
     for (let h = 0; h < 24; h++) {
       const col = _el("div", "bar-col");
+      const barPrice = _el("div", "bar-price");
       const bar = _el("div", "bar");
-      const label = _el("div", "bar-h", String(h));
-      col.append(bar, label);
+      col.append(barPrice, bar);
       barsContainer.appendChild(col);
-      barEls.push({ col, bar, label });
+      barEls.push({ col, bar, barPrice });
     }
 
     const noPricesMsg = _el("div", "no-prices");
-    card.append(priceSection, noPricesMsg);
 
-    // ── Schedule grid (no separate hour row – hours shown on bar labels) ──
+    // ── Schedule grid ────────────────────────────────────────────────────────
     const gridScroll = _el("div", "grid-scroll");
+
+    // Hour header row – always visible even when prices are unavailable (TODO 2)
+    const hourHeaderRow = _el("div");
+    hourHeaderRow.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:2px 6px;align-items:center`;
+    hourHeaderRow.appendChild(_el("div")); // empty label column
+    const hourHeaderCells = [];
+    for (let h = 0; h < 24; h++) {
+      const cell = _el("div", "gh", String(h));
+      hourHeaderRow.appendChild(cell);
+      hourHeaderCells.push(cell);
+    }
+    gridScroll.appendChild(hourHeaderRow);
 
     // Device rows with persistent cells – event listeners bound once here
     const deviceRows = [];
@@ -467,7 +527,11 @@ class SpotSchedulerCard extends HTMLElement {
 
     const noDevicesMsg = _el("div", "no-prices");
     gridScroll.appendChild(noDevicesMsg);
-    card.appendChild(gridScroll);
+
+    // Shared horizontal scroll container: price bars + schedule grid scroll together (TODO 5)
+    const scrollWrap = _el("div", "scroll-wrap");
+    scrollWrap.append(priceSection, noPricesMsg, gridScroll);
+    card.appendChild(scrollWrap);
 
     // ── Footer ───────────────────────────────────────────────────────────────
     const saveHint = _el("div", "save-hint");
@@ -479,6 +543,7 @@ class SpotSchedulerCard extends HTMLElement {
       prevBtn, nextBtn, dateLbl, pricesNote,
       legendSpans,
       priceSection, noPricesMsg, priceLbl, barEls,
+      hourHeaderCells,
       deviceRows, noDevicesMsg, saveHint,
     };
   }
@@ -500,7 +565,9 @@ class SpotSchedulerCard extends HTMLElement {
     const dayPrices = this._prices[this._selectedDate]
       ?? (isToday ? this._prices[today] ?? {} : {});
     const pricesLoaded = Object.keys(dayPrices).length > 0;
-    const maxP = pricesLoaded ? Math.max(...Object.values(dayPrices)) : 0;
+    // Global max across all loaded days so scale stays consistent when navigating (TODO 3)
+    const allLoadedPrices = Object.values(this._prices).flatMap(day => Object.values(day));
+    const maxP = allLoadedPrices.length ? Math.max(...allLoadedPrices) : 0;
 
     // Header text
     d.titleEl.textContent = this._config.title || this._tr("title");
@@ -514,8 +581,10 @@ class SpotSchedulerCard extends HTMLElement {
       const dayMax = Math.max(...dayPriceValues);
       d.minLabel.textContent = this._tr("stat_min");
       d.minValue.textContent = this._fmtPrice(dayMin);
+      d.minValue.style.color = this._priceColor(dayMin);
       d.maxLabel.textContent = this._tr("stat_max");
       d.maxValue.textContent = this._fmtPrice(dayMax);
+      d.maxValue.style.color = this._priceColor(dayMax);
     } else {
       d.statsEl.style.display = "none";
     }
@@ -543,18 +612,26 @@ class SpotSchedulerCard extends HTMLElement {
       d.noPricesMsg.style.display = "none";
       d.priceLbl.textContent = this._tr("price_row_label");
 
+      const showPriceLabels = !!this._config.show_price_labels;
       for (let h = 0; h < 24; h++) {
-        const { col, bar, label } = d.barEls[h];
+        const { col, bar, barPrice } = d.barEls[h];
         const p = dayPrices[h];
-        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 70) + 3 : 2;
+        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 88) + 3 : 2;
         const color = p != null ? this._priceColor(p) : "var(--secondary-background-color)";
         const isExp = expHours.has(h);
 
         bar.style.height = barH + "px";
         bar.style.background = color;
         bar.className = isExp ? "bar exp" : "bar";
-        label.className = (isToday && h === curHour) ? "bar-h cur" : "bar-h";
         col.title = `${h}:00 – ${this._fmtPrice(p)}`;
+
+        // Price label above each bar (TODO 4)
+        if (showPriceLabels && p != null) {
+          barPrice.textContent = (p * 100).toFixed(1);
+          barPrice.style.display = "";
+        } else {
+          barPrice.style.display = "none";
+        }
       }
     } else {
       d.priceSection.style.display = "none";
@@ -575,8 +652,9 @@ class SpotSchedulerCard extends HTMLElement {
 
         let cls = "cell";
         let icon = "";
-        if (state === true)       { cls += " on";    icon = "✔"; }
-        else                       { cls += " off";   icon = "—"; }
+        if (state === true)        { cls += " on";    icon = "✔"; }
+        else if (state === false)  { cls += " off";   icon = "✕"; }
+        else                       { cls += " unset"; icon = " "; }
         if (isExp) cls += " exp-cell";
         if (isCur) cls += " cur-cell";
 
@@ -584,6 +662,11 @@ class SpotSchedulerCard extends HTMLElement {
         if (el.textContent !== icon) el.textContent = icon;
         el.title = `${hour}:00 · ${name} · ${this._fmtPrice(dayPrices[hour])}`;
       }
+    }
+
+    // Hour header: highlight current hour (TODO 2)
+    for (let h = 0; h < 24; h++) {
+      d.hourHeaderCells[h].className = (isToday && h === curHour) ? "gh cur" : "gh";
     }
 
     // No-devices message
@@ -596,17 +679,189 @@ class SpotSchedulerCard extends HTMLElement {
 
   getCardSize() { return 6; }
 
+  static getConfigElement() {
+    return document.createElement("spot-scheduler-card-editor");
+  }
+
   static getStubConfig() {
     return {};
   }
 }
 
+// ── Visual editor ──────────────────────────────────────────────────────────────
+class SpotSchedulerCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config         = {};
+    this._hass           = null;
+    this._form           = null;
+    this._namesContainer = null;
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+    if (this._form) this._form.data = this._formData();
+    this._renderDeviceNames();
+  }
+
+  set hass(hass) {
+    // Only rebuild device-name inputs when the device list actually changes,
+    // to avoid wiping text fields the user is currently typing in.
+    const prevDeviceList = JSON.stringify(this._devices());
+    this._hass = hass;
+    if (this._form) this._form.hass = hass;
+    if (JSON.stringify(this._devices()) !== prevDeviceList) {
+      this._renderDeviceNames();
+    }
+  }
+
+  connectedCallback() {
+    if (!this._form) this._build();
+  }
+
+  // Return device list from config or from status sensor attributes
+  _devices() {
+    if (this._config.devices?.length) return this._config.devices;
+    if (!this._hass) return [];
+    const sensorId = this._config.status_entity ||
+      Object.keys(this._hass.states).find(id =>
+        id.startsWith("sensor.") && id.includes("schedule_status") &&
+        (id.includes("spot_scheduler") || id.includes("spotscheduler"))
+      );
+    return this._hass.states?.[sensorId]?.attributes?.devices ?? [];
+  }
+
+  // Only the fields handled by ha-form
+  _formData() {
+    return {
+      title:             this._config.title             ?? "",
+      expensive_hours:   this._config.expensive_hours    ?? 3,
+      show_price_labels: this._config.show_price_labels ?? false,
+      label_width:       this._config.label_width        ?? 120,
+      status_entity:     this._config.status_entity      ?? "",
+    };
+  }
+
+  _build() {
+    const root = this.shadowRoot;
+
+    const style = document.createElement("style");
+    style.textContent = `
+      .sec { font-size:12px; font-weight:600; color:var(--secondary-text-color);
+        text-transform:uppercase; letter-spacing:.8px; padding:16px 0 8px; }
+      .dev-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+      .dev-id  { font-size:12px; color:var(--secondary-text-color); flex:1;
+        overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+    `;
+    root.appendChild(style);
+
+    const schema = [
+      { name: "title",             label: "editor_title",             selector: { text: {} } },
+      { name: "expensive_hours",   label: "editor_expensive_hours",   selector: { number: { min: 0, max: 12, step: 1, mode: "slider" } } },
+      { name: "show_price_labels", label: "editor_show_price_labels", selector: { boolean: {} } },
+      { name: "label_width",       label: "editor_label_width",       selector: { number: { min: 60, max: 300, step: 10, mode: "box" } } },
+      { name: "status_entity",     label: "editor_status_entity",     selector: { entity: { domain: "sensor" } } },
+    ];
+
+    const form = document.createElement("ha-form");
+    form.hass         = this._hass;
+    form.data         = this._formData();
+    form.schema       = schema;
+    form.computeLabel = (s) => _t(this._hass?.locale?.language || "en", s.label);
+
+    form.addEventListener("value-changed", (e) => {
+      const v = e.detail.value;
+      this._config = { ...this._config };
+      if (v.title)             this._config.title             = v.title;          else delete this._config.title;
+      this._config.expensive_hours   = v.expensive_hours;
+      this._config.show_price_labels = v.show_price_labels;
+      this._config.label_width       = v.label_width;
+      if (v.status_entity)     this._config.status_entity     = v.status_entity;  else delete this._config.status_entity;
+      this._fire();
+      // Refresh device list if status_entity changed
+      this._renderDeviceNames();
+    });
+
+    this._form = form;
+    root.appendChild(form);
+
+    // ── Device names section ─────────────────────────────────────────────────
+    const secTitle = document.createElement("div");
+    secTitle.className = "sec";
+    this._secTitle = secTitle;
+    root.appendChild(secTitle);
+
+    const container = document.createElement("div");
+    this._namesContainer = container;
+    root.appendChild(container);
+
+    this._renderDeviceNames();
+  }
+
+  _renderDeviceNames() {
+    if (!this._namesContainer) return;
+    const lang    = this._hass?.locale?.language || "en";
+    const devices = this._devices();
+    const container = this._namesContainer;
+    container.innerHTML = "";
+
+    if (this._secTitle) this._secTitle.textContent = _t(lang, "editor_device_names");
+
+    if (!devices.length) {
+      const msg = document.createElement("div");
+      msg.style.cssText = "font-size:13px;color:var(--disabled-text-color);padding:2px 0 10px";
+      msg.textContent = _t(lang, "editor_no_devices");
+      container.appendChild(msg);
+      return;
+    }
+
+    for (const devId of devices) {
+      const row = document.createElement("div");
+      row.className = "dev-row";
+
+      const lbl = document.createElement("div");
+      lbl.className   = "dev-id";
+      lbl.textContent = this._hass?.states?.[devId]?.attributes?.friendly_name ?? devId;
+      lbl.title       = devId;
+
+      const field = document.createElement("ha-textfield");
+      field.label       = _t(lang, "editor_device_placeholder");
+      field.value       = this._config.device_names?.[devId] ?? "";
+      field.placeholder = devId.split(".").pop().replace(/_/g, " ");
+      field.style.cssText = "flex:1;min-width:0";
+
+      const onUpdate = () => {
+        const val = field.value.trim();
+        if (!this._config.device_names) this._config.device_names = {};
+        if (val) this._config.device_names[devId] = val;
+        else     delete this._config.device_names[devId];
+        if (!Object.keys(this._config.device_names).length) delete this._config.device_names;
+        this._fire();
+      };
+      field.addEventListener("change", onUpdate);
+
+      row.append(lbl, field);
+      container.appendChild(row);
+    }
+  }
+
+  _fire() {
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      detail: { config: { ...this._config } },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+}
+
+customElements.define("spot-scheduler-card-editor", SpotSchedulerCardEditor);
 customElements.define("spot-scheduler-card", SpotSchedulerCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "spot-scheduler-card",
-  name: "SpotScheduler",
-  description: "Hourly device schedule based on Nord Pool spot electricity prices.",
+  name: "Spot Scheduler",
+  description: "Run your appliances when electricity is cheapest — Nord Pool-powered scheduling that can automatically pick the cheapest hours and executes them on time.",
   preview: true,
 });

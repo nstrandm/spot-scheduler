@@ -24,18 +24,27 @@ from .const import (
     DOMAIN,
     STORAGE_KEY,
     STORAGE_VERSION,
+    CARD_VERSION,
     NORDPOOL_DOMAIN,
     CONF_NORDPOOL_CONFIG_ENTRY,
     CONF_DEVICES,
+    CONF_AUTO_SELECT_HOURS,
+    CONF_EXPENSIVE_HOURS_COUNT,
+    CONF_AUTO_SELECT_ENABLED,
+    CONF_BLOCK_EXPENSIVE_HOURS,
+    DEFAULT_AUTO_SELECT_HOURS,
+    DEFAULT_AUTO_SELECT_ENABLED,
+    DEFAULT_EXPENSIVE_HOURS,
+    DEFAULT_BLOCK_EXPENSIVE,
     ISSUE_NORDPOOL_MISSING,
     ISSUE_NORDPOOL_UNAVAILABLE,
     TOMORROW_POLL_INTERVAL_MINUTES,
     TOMORROW_POLL_START_HOUR,
 )
-from .logic import parse_hourly_prices, prune_old_dates, set_schedule
+from .logic import parse_hourly_prices, prune_old_dates, set_schedule, cheapest_hours, expensive_hours
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.SENSOR, Platform.NUMBER]
 
 
 def _get_nordpool_entry_id(entry: ConfigEntry) -> str | None:
@@ -49,11 +58,15 @@ SET_SCHEDULE_SCHEMA = vol.Schema({
     vol.Optional("date"): cv.date,
     vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
     vol.Required("device_id"): cv.entity_id,
-    vol.Required("enabled"): cv.boolean,
+    vol.Optional("enabled"): cv.boolean,  # absent/null = unset (don't touch)
 })
 
 REFRESH_PRICES_SCHEMA = vol.Schema({
     vol.Optional("date"): cv.date,
+})
+
+APPLY_NOW_SCHEMA = vol.Schema({
+    vol.Optional("entry_id"): cv.string,
 })
 
 
@@ -83,16 +96,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     store = Store(hass, STORAGE_VERSION, f"{STORAGE_KEY}.{entry.entry_id}")
     stored = await store.async_load() or {}
 
+    _merged_cfg = {**entry.data, **entry.options}
+    loaded_prices: dict = stored.get("prices", {})
+    today_str = dt_util.now().date().isoformat()
+    today_price_vals = list(loaded_prices.get(today_str, {}).values())
+
     hass.data[DOMAIN][entry.entry_id] = {
         "config":     entry.data,
         "store":      store,
         "schedules":  stored.get("schedules", {}),
-        "prices":     {},       # { "YYYY-MM-DD": { hour_int: float } }
-        "min_price":  None,
-        "max_price":  None,
+        "prices":     loaded_prices,
+        "min_price":  min(today_price_vals) if today_price_vals else None,
+        "max_price":  max(today_price_vals) if today_price_vals else None,
         "tomorrow_fetched": False,   # guard: fetch tomorrow at most once per day
         "_tomorrow_lock":  asyncio.Lock(),  # prevents concurrent fetches
         "_unload_callbacks": [],
+        # Track which devices were configured at setup time so the update_listener
+        # can avoid a full reload when only number-entity options change.
+        "configured_devices": set(_merged_cfg.get(CONF_DEVICES, [])),
     }
 
     # Fetch today's prices once on startup; warn via Repairs if it fails
@@ -161,7 +182,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Only remove services when the last instance is unloaded
     remaining = [e for e in hass.data[DOMAIN] if e != entry.entry_id]
     if not remaining:
-        for svc in ("set_device_schedule", "refresh_prices"):
+        for svc in ("set_device_schedule", "refresh_prices", "apply_schedules_now"):
             if hass.services.has_service(DOMAIN, svc):
                 hass.services.async_remove(DOMAIN, svc)
 
@@ -172,39 +193,59 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload when options change."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    """Reload only when the device list changes.
+
+    Number-entity and switch option writes (price thresholds, expensive_hours,
+    auto_select_enabled, etc.) also trigger this listener, but those should NOT
+    cause a full reload — the entities read entry.options dynamically.
+    """
+    data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
+    configured: set = data.get("configured_devices", set())
+    current = set({**entry.data, **entry.options}.get(CONF_DEVICES, []))
+    if configured != current:
+        _LOGGER.info(
+            "SpotScheduler: device list changed (%s → %s), reloading.",
+            configured, current,
+        )
+        await hass.config_entries.async_reload(entry.entry_id)
 
 
 # ── Frontend resource registration ─────────────────────────────────────────────
 
-CARD_URL = f"/api/{DOMAIN}/static/spot-scheduler-card.js"
+CARD_URL = f"/api/{DOMAIN}/static/spot-scheduler-card.js?v={CARD_VERSION}"
 
 async def _register_frontend(hass: HomeAssistant) -> None:
-    """Register the Lovelace card JS resource once.
+    """Register the static HTTP path (once) and keep the Lovelace resource URL current.
 
     HACS serves integration files under custom_components/, not /hacsfiles/.
     We register a static path ourselves so the card works regardless of
     whether the integration was installed via HACS or manually.
+
+    The static-path registration is guarded to run only once per HA process
+    (re-registering the same path raises an error).  The Lovelace resource
+    URL check runs on every call so version bumps and first-time registrations
+    are handled even when Lovelace was not ready at the first startup attempt.
     """
-    if hass.data.get(f"{DOMAIN}_frontend_registered"):
-        return
+    # ── Static HTTP path (once per HA process) ─────────────────────────────
+    if not hass.data.get(f"{DOMAIN}_static_registered"):
+        import pathlib
+        static_path = str(pathlib.Path(__file__).parent / "www")
+        static_url  = f"/api/{DOMAIN}/static"
 
-    import pathlib
-    static_path = str(pathlib.Path(__file__).parent / "www")
-    static_url  = f"/api/{DOMAIN}/static"
-
-    try:
-        from homeassistant.components.http import StaticPathConfig
-        await hass.http.async_register_static_paths(
-            [StaticPathConfig(static_url, static_path, True)]
-        )
-    except (ImportError, AttributeError):
         try:
-            hass.http.register_static_path(static_url, static_path, cache_headers=True)
-        except Exception as exc:
-            _LOGGER.warning("Could not register static path: %s", exc)
+            from homeassistant.components.http import StaticPathConfig
+            await hass.http.async_register_static_paths(
+                [StaticPathConfig(static_url, static_path, True)]
+            )
+        except (ImportError, AttributeError):
+            try:
+                hass.http.register_static_path(static_url, static_path, cache_headers=True)
+            except Exception as exc:
+                _LOGGER.warning("Could not register static path: %s", exc)
 
+        hass.data[f"{DOMAIN}_static_registered"] = True
+
+    # ── Lovelace resource URL (every call – idempotent) ────────────────────
     try:
         from homeassistant.components.lovelace.resources import (
             ResourceStorageCollection,
@@ -218,17 +259,21 @@ async def _register_frontend(hass: HomeAssistant) -> None:
             if not existing:
                 await resources.async_create_item({"res_type": "module", "url": CARD_URL})
                 _LOGGER.info("Registered Lovelace resource: %s", CARD_URL)
+            elif existing[0].get("url") != CARD_URL:
+                # Version changed – update the registered URL so browsers fetch the new file
+                await resources.async_update_item(
+                    existing[0]["id"], {"res_type": "module", "url": CARD_URL}
+                )
+                _LOGGER.info("Updated Lovelace resource URL to: %s", CARD_URL)
             else:
-                _LOGGER.debug("Lovelace resource already registered.")
+                _LOGGER.debug("Lovelace resource already up-to-date: %s", CARD_URL)
         else:
             _LOGGER.debug(
-                "Lovelace resources collection not available – "
-                "card must be added manually as a resource."
+                "Lovelace resources collection not available yet – "
+                "will be registered on next reload or HA restart."
             )
     except Exception as exc:
         _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
-
-    hass.data[f"{DOMAIN}_frontend_registered"] = True
 
 
 # ── Nord Pool state tracking ───────────────────────────────────────────────────
@@ -394,6 +439,12 @@ async def _fetch_prices_for_date(
         return False   # entry was unloaded while we awaited
 
     data = hass.data[DOMAIN][entry.entry_id]
+
+    # Prices are new if this date wasn't already in the store (loaded from
+    # persistent storage at startup).  Re-fetching known prices on HA restart
+    # should NOT re-trigger auto-select — it already ran when prices first arrived.
+    prices_are_new = date_str not in data["prices"]
+
     data["prices"][date_str] = averaged
 
     if date_str == dt_util.now().date().isoformat():
@@ -408,6 +459,13 @@ async def _fetch_prices_for_date(
         f"{DOMAIN}_prices_updated",
         {"entry_id": entry.entry_id, "date": date_str},
     )
+
+    # Auto-select cheapest / block expensive only when prices arrive for the
+    # first time for this date.  Skipping on restart prevents mid-hour device
+    # state changes caused by re-running the schedule logic on stale data.
+    if prices_are_new:
+        await _auto_select_cheapest(hass, entry, date_str)
+
     return True
 
 
@@ -435,11 +493,101 @@ async def _daily_reset(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def _save_schedules(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Persist schedules to HA storage (included in HA backups automatically)."""
+    """Persist schedules and prices to HA storage (included in HA backups)."""
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
         return
     data = hass.data[DOMAIN][entry.entry_id]
-    await data["store"].async_save({"schedules": data.get("schedules", {})})
+    await data["store"].async_save({
+        "schedules": data.get("schedules", {}),
+        "prices":    data.get("prices", {}),
+    })
+
+
+# ── Auto-select cheapest hours ─────────────────────────────────────────────────
+
+async def _auto_select_cheapest(
+    hass: HomeAssistant, entry: ConfigEntry, date_str: str
+) -> None:
+    """Auto-configure hours after prices arrive.
+
+    1. Set cheapest N hours to ON for each device (if not already scheduled).
+    2. If "block expensive hours" is enabled, set top N expensive hours to OFF
+       for each device (unless they were just set to ON by step 1).
+
+    Skips devices that already have any schedule entry for the given date.
+    """
+    if entry.entry_id not in hass.data.get(DOMAIN, {}):
+        return
+
+    data   = hass.data[DOMAIN][entry.entry_id]
+    merged = {**entry.data, **entry.options}
+
+    prices = data.get("prices", {}).get(date_str, {})
+    if not prices:
+        return
+
+    devices   = merged.get(CONF_DEVICES, [])
+    schedules = data.setdefault("schedules", {})
+    changed   = False
+
+    # Resolve auto_select_hours – may be legacy int or new per-device dict
+    raw_auto = merged.get(CONF_AUTO_SELECT_HOURS, DEFAULT_AUTO_SELECT_HOURS)
+    if isinstance(raw_auto, int):
+        auto_hours: dict[str, int] = {d: raw_auto for d in devices}
+    else:
+        auto_hours = raw_auto if isinstance(raw_auto, dict) else {}
+
+    # Step 1: auto-select cheapest hours (skip if globally disabled)
+    auto_select_enabled = merged.get(CONF_AUTO_SELECT_ENABLED, DEFAULT_AUTO_SELECT_ENABLED)
+    for device_id in devices:
+        if not auto_select_enabled:
+            break
+        n = int(auto_hours.get(device_id, 0))
+        if n <= 0:
+            continue
+        device_sched = schedules.get(date_str, {}).get(device_id)
+        if device_sched is not None and len(device_sched) > 0:
+            continue
+        cheap = cheapest_hours(prices, n)
+        schedules.setdefault(date_str, {}).setdefault(device_id, {})
+        for hour in cheap:
+            schedules[date_str][device_id][str(hour)] = True
+        changed = True
+        _LOGGER.info(
+            "Auto-select: set %d cheapest hours for %s on %s",
+            n, device_id, date_str,
+        )
+
+    # Step 2: block expensive hours (if option is enabled)
+    if merged.get(CONF_BLOCK_EXPENSIVE_HOURS, DEFAULT_BLOCK_EXPENSIVE):
+        exp_count = int(merged.get(CONF_EXPENSIVE_HOURS_COUNT, DEFAULT_EXPENSIVE_HOURS))
+        if exp_count > 0:
+            exp_hrs = expensive_hours(prices, exp_count)
+
+            # For today, never retroactively block the current or past hours.
+            # _apply_schedules fires right after startup and would otherwise
+            # immediately turn a device off mid-hour.
+            now = dt_util.now()
+            today_str = now.date().isoformat()
+            min_hour = (now.hour + 1) if date_str == today_str else 0
+
+            blockable = [h for h in exp_hrs if h >= min_hour]
+            for device_id in devices:
+                for hour in blockable:
+                    existing = schedules.get(date_str, {}).get(device_id, {}).get(str(hour))
+                    if existing is not True:  # don't overwrite auto-selected ON
+                        set_schedule(schedules, date_str, device_id, hour, False)
+                        changed = True
+            _LOGGER.info(
+                "Block expensive: set %d expensive hours (h>=%d) to OFF on %s",
+                len(blockable), min_hour, date_str,
+            )
+
+    if changed:
+        await _save_schedules(hass, entry)
+        hass.bus.async_fire(f"{DOMAIN}_schedule_changed", {
+            "device_id": None, "date": date_str, "hour": None, "enabled": None,
+        })
 
 
 # ── Services ───────────────────────────────────────────────────────────────────
@@ -449,9 +597,9 @@ def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
     async def set_device_schedule(call: ServiceCall) -> None:
         target_date = (call.data.get("date") or dt_util.now().date()).isoformat()
-        hour: int      = call.data["hour"]
-        device_id: str = call.data["device_id"]
-        enabled: bool  = call.data["enabled"]
+        hour: int        = call.data["hour"]
+        device_id: str   = call.data["device_id"]
+        enabled: bool | None = call.data.get("enabled")  # None = unset / don't touch
 
         matched = False
         for eid, data in hass.data.get(DOMAIN, {}).items():
@@ -471,9 +619,8 @@ def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 data.setdefault("schedules", {}),
                 target_date, device_id, hour, enabled,
             )
-            cfg = hass.config_entries.async_get_entry(eid)
-            if cfg:
-                await _save_schedules(hass, cfg)
+            if cfg_entry:
+                await _save_schedules(hass, cfg_entry)
 
         if not matched:
             _LOGGER.warning(
@@ -508,4 +655,18 @@ def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass.services.async_register(
             DOMAIN, "refresh_prices", refresh_prices,
             schema=REFRESH_PRICES_SCHEMA,
+        )
+
+    async def apply_schedules_now(call: ServiceCall) -> None:
+        entry_id = call.data.get("entry_id")
+        hass.bus.async_fire(f"{DOMAIN}_apply_now", {"entry_id": entry_id})
+        _LOGGER.info(
+            "apply_schedules_now triggered manually (entry_id=%s)",
+            entry_id or "all",
+        )
+
+    if not hass.services.has_service(DOMAIN, "apply_schedules_now"):
+        hass.services.async_register(
+            DOMAIN, "apply_schedules_now", apply_schedules_now,
+            schema=APPLY_NOW_SCHEMA,
         )

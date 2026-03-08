@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "SpotScheduler",
-        "description": "Konfiguroi SpotScheduler ohjaamaan laitteita Nord Pool pörssisähkön hintojen mukaan.\n\nVaatii sisäänrakennetun Nord Pool -integraation (Home Assistant 2025.1+).",
+        "title": "Spot Scheduler",
+        "description": "Konfiguroi Spot Scheduler ohjaamaan laitteita Nord Pool pörssisähkön hintojen mukaan.\n\nVaatii sisäänrakennetun Nord Pool -integraation (Home Assistant 2025.1+).",
         "data": {
           "name": "Nimi",
           "nordpool_config_entry": "Nord Pool -integraatio",
@@ -32,32 +32,51 @@
   "options": {
     "step": {
       "init": {
-        "title": "SpotScheduler – asetukset",
+        "title": "Spot Scheduler",
+        "description": "Valitse Nord Pool -integraatio ja ohjattavat laitteet. Hintarajat, automaattivalinta ja kalliiden tuntien asetukset löytyvät laitteen Konfiguraatio-sivulta.",
         "data": {
-          "devices": "Ohjattavat laitteet",
-          "expensive_hours_count": "Kalliit tunnit (korostetaan punaisella)",
           "nordpool_config_entry": "Nord Pool -integraatio",
-          "price_threshold_low": "Halvan hinnan raja (vihreä)",
-          "price_threshold_high": "Kalliin hinnan raja (punainen)"
+          "devices": "Ohjattavat laitteet"
         },
         "data_description": {
-          "devices": "Valitse laitteet joita voi ajastaa tunneittain päälle/pois.",
-          "expensive_hours_count": "Näin monta kalleinta tuntia korostetaan punaisella reunuksella.",
-          "nordpool_config_entry": "Valitse käytettävä Nord Pool -integraatio hintatietojen hakuun.",
-          "price_threshold_low": "Tätä halvemmat tunnit näkyvät vihreinä. Senttiä per kWh.",
-          "price_threshold_high": "Tätä kalliimmat tunnit näkyvät punaisina. Senttiä per kWh."
+          "nordpool_config_entry": "Valitse Nord Pool -integraatio tuntihintatietojen hakuun.",
+          "devices": "Valitse laitteet joita Spot Scheduler ohjaa tunneittain päälle/pois."
         }
+      }
+    }
+  },
+  "entity": {
+    "number": {
+      "price_threshold_low": {
+        "name": "Min hintaraja"
+      },
+      "price_threshold_high": {
+        "name": "Max hintaraja"
+      },
+      "auto_select_hours": {
+        "name": "Halvimmat tunnit"
+      },
+      "expensive_hours": {
+        "name": "Kalliit tunnit"
+      }
+    },
+    "switch": {
+      "auto_select": {
+        "name": "Halvimmat tunnit – automaattinen valinta"
+      },
+      "block_expensive_hours": {
+        "name": "Kalliit tunnit – sammuta"
       }
     }
   },
   "issues": {
     "nordpool_integration_missing": {
       "title": "Nord Pool -integraatio poistettu",
-      "description": "SpotSchedulerin käyttämää Nord Pool -integraatiota ei enää löydy. Lisää Nord Pool uudelleen kohdasta Asetukset → Laitteet ja palvelut, ja käynnistä SpotScheduler uudelleen."
+      "description": "Spot Schedulerin käyttämää Nord Pool -integraatiota ei enää löydy. Lisää Nord Pool uudelleen kohdasta Asetukset → Laitteet ja palvelut, ja käynnistä Spot Scheduler uudelleen."
     },
     "nordpool_unavailable": {
       "title": "Nord Pool -hinnat eivät saatavilla",
-      "description": "SpotScheduler ei saanut päivän sähköhintoja. Nord Pool API saattaa olla tilapäisesti alhaalla. Hintojen haku yritetään automaattisesti uudelleen.\n\nVoit myös pakottaa päivityksen: **Palvelut → spot_scheduler.refresh_prices**."
+      "description": "Spot Scheduler ei saanut päivän sähköhintoja. Nord Pool API saattaa olla tilapäisesti alhaalla. Hintojen haku yritetään automaattisesti uudelleen.\n\nVoit myös pakottaa päivityksen: **Palvelut → spot_scheduler.refresh_prices**."
     }
   }
 }
