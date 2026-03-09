@@ -6,6 +6,7 @@ const TRANSLATIONS = {
   en: {
     title: "Spot Scheduler",
     subtitle: "Schedule cheapest hours automatically · Nord Pool spot prices",
+    subtitle_mobile: "Schedule cheapest hours automatically",
     prices_note: "Prices fetched automatically when available",
     prices_pending: "⏳ Waiting for today's prices from Nord Pool",
     on: "On",
@@ -34,6 +35,7 @@ const TRANSLATIONS = {
   fi: {
     title: "Spot Scheduler",
     subtitle: "Halvimmat tunnit automaattisesti · Nord Pool pörssisähkö",
+    subtitle_mobile: "Halvimmat tunnit automaattisesti",
     prices_note: "Hinnat haetaan automaattisesti kun saatavilla",
     prices_pending: "⏳ Odotetaan päivän hintoja Nord Poolilta",
     on: "Päällä",
@@ -101,13 +103,13 @@ const STYLES = `
   .price-section { margin-bottom:14px; }
   .price-lbl { font-size:12px; color:var(--disabled-text-color); margin-bottom:5px; }
   .bars { display:flex; align-items:flex-end; gap:2px; height:100px; }
-  .bar-col { flex:1; min-width:28px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+  .bar-col { flex:1; min-width:24px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
   .bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color, #f87171) 65%, transparent); }
   .divider { height:1px; background:var(--divider-color); margin:13px 0; }
   .scroll-wrap { overflow-x:auto; overflow-y:hidden; }
   .grid-scroll { overflow-x:visible; overflow-y:hidden; }
-  .gh { text-align:center; font-size:12px; color:var(--disabled-text-color);
+  .gh { text-align:center; font-size:14px; color:var(--disabled-text-color);
     font-weight:700; padding:2px 0; }
   .gh.cur { color:var(--primary-color); }
   .dev-lbl { font-size:13px; font-weight:600; color:var(--primary-text-color);
@@ -115,15 +117,15 @@ const STYLES = `
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .cell { aspect-ratio:1; border-radius:4px; border:2px solid transparent;
     display:flex; align-items:center; justify-content:center; margin: 2px;
-    font-size:13px; font-weight:700; cursor:pointer; min-height:24px;
+    font-size:13px; font-weight:700; cursor:pointer; min-height:20px;
     transition:transform .1s; }
   .cell:hover { transform:scale(1.1); z-index:5; position:relative; }
   .cell.on { background:var(--primary-color); border-color:var(--primary-color);
     color:var(--text-primary-color, #fff);
     box-shadow:0 0 6px color-mix(in srgb, var(--primary-color) 45%, transparent); }
   .cell.off { background:var(--secondary-background-color);
-    border-color:var(--divider-color); color:var(--disabled-text-color); }
-  .cell.unset { background:transparent; border-color:var(--divider-color);
+    border-color:var(----darker-primary-color); color:var(--disabled-text-color); }
+  .cell.unset { background:transparent; border-color:var(----darker-primary-color);
     color:var(--disabled-text-color); opacity:0.35; }
   .cell.exp-cell { border-color:var(--error-color, #f87171) !important; }
   .cell.cur-cell { box-shadow:0 0 0 2.5px var(--warning-color, #ff9800); }
@@ -131,8 +133,25 @@ const STYLES = `
     font-size:13px; }
   .save-hint { text-align:right; font-size:10px; color:var(--disabled-text-color);
     margin-top:11px; font-style:italic; }
-  .bar-price { font-size:9px; color:var(--secondary-text-color); text-align:center;
+  .bar-price { font-size:11px; color:var(--secondary-text-color); text-align:center;
     line-height:1.2; min-height:12px; }
+
+  /* ── Mobile layout ──────────────────────────────────────────────────────── */
+  .header.mobile { flex-direction:column; align-items:stretch; gap:10px; }
+  .header.mobile .stats { justify-content:flex-start; }
+  .header.mobile .stat-box { min-width:60px; padding:6px 10px; }
+  .header.mobile .stat-value { font-size:13px; }
+  .card.mobile-card { padding: 6px; }
+  .mobile-card .prices-note { display: none; }
+  .mobile-card .scroll-wrap { overflow-y: visible; }
+  .dev-name-mobile { font-size:12px; font-weight:600; color:var(--primary-text-color);
+    padding:3px 2px 1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row-tag { font-size:10px; font-weight:700; color:var(--secondary-text-color);
+    text-transform:uppercase; letter-spacing:.6px; width:24px; flex-shrink:0;
+    display:flex; align-items:center; }
+  .mobile-bars { display:flex; align-items:flex-end; gap:1px; height:55px; overflow:hidden; margin-bottom:2px; }
+  .mobile-bars .bar-col { min-width:0; }
+  .cell.mobile-cell { min-height:20px; font-size:11px; margin:0; }
 `;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -169,6 +188,25 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Persistent DOM element references (populated once in _buildDOM)
     this._dom = null;
+    this._isMobile = window.matchMedia("(max-width: 519px)").matches;
+    this._mq = null;
+  }
+
+  connectedCallback() {
+    this._mq = window.matchMedia("(max-width: 519px)");
+    this._mqHandler = (e) => {
+      if (e.matches !== this._isMobile) {
+        this._isMobile = e.matches;
+        this._dom = null;
+        this._update();
+      }
+    };
+    this._mq.addEventListener("change", this._mqHandler);
+  }
+
+  disconnectedCallback() {
+    this._mq?.removeEventListener("change", this._mqHandler);
+    this._mq = null;
   }
 
   // ── HA lifecycle ────────────────────────────────────────────────────────────
@@ -390,6 +428,7 @@ class SpotSchedulerCard extends HTMLElement {
   _buildDOM() {
     const root = this.shadowRoot;
     root.innerHTML = "";
+    const mobile = !!this._isMobile;
 
     const style = document.createElement("style");
     style.textContent = STYLES;
@@ -418,6 +457,7 @@ class SpotSchedulerCard extends HTMLElement {
     maxBox.appendChild(maxLabel); maxBox.appendChild(maxValue);
     statsEl.appendChild(minBox); statsEl.appendChild(maxBox);
     header.appendChild(statsEl);
+    if (mobile) { header.classList.add("mobile"); card.classList.add("mobile-card"); }
     card.appendChild(header);
 
     // ── Date navigation ──────────────────────────────────────────────────────
@@ -465,72 +505,136 @@ class SpotSchedulerCard extends HTMLElement {
 
     // ── Shared layout constants ─────────────────────────────────────────────
     const devices = this._config.devices ?? [];
-    const labelW = this._config.label_width ?? 120;
-    const gridCols = `${labelW}px repeat(24, minmax(28px, 1fr))`;
 
-    // ── Price bars ────────────────────────────────────────────────────────────
-    const priceSection = _el("div", "price-section");
-    const priceLbl = _el("div", "price-lbl");
-    const barsContainer = _el("div", "bars");
-    // Add empty spacer to align with device label column
-    const barSpacer = _el("div");
-    barSpacer.style.cssText = `width:${labelW}px;flex-shrink:0`;
-    barsContainer.insertBefore(barSpacer, barsContainer.firstChild);
-    priceSection.append(priceLbl, barsContainer);
-
-    const barEls = [];
-    for (let h = 0; h < 24; h++) {
-      const col = _el("div", "bar-col");
-      const barPrice = _el("div", "bar-price");
-      const bar = _el("div", "bar");
-      col.append(barPrice, bar);
-      barsContainer.appendChild(col);
-      barEls.push({ col, bar, barPrice });
-    }
-
-    const noPricesMsg = _el("div", "no-prices");
-
-    // ── Schedule grid ────────────────────────────────────────────────────────
-    const gridScroll = _el("div", "grid-scroll");
-
-    // Hour header row – always visible even when prices are unavailable (TODO 2)
-    const hourHeaderRow = _el("div");
-    hourHeaderRow.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:2px 6px;align-items:center`;
-    hourHeaderRow.appendChild(_el("div")); // empty label column
-    const hourHeaderCells = [];
-    for (let h = 0; h < 24; h++) {
-      const cell = _el("div", "gh", String(h));
-      hourHeaderRow.appendChild(cell);
-      hourHeaderCells.push(cell);
-    }
-    gridScroll.appendChild(hourHeaderRow);
-
-    // Device rows with persistent cells – event listeners bound once here
+    const barEls = []; // indexed by actual hour 0-23
+    const hourHeaderCells = []; // indexed by actual hour 0-23
     const deviceRows = [];
-    for (const devId of devices) {
-      const name = this._deviceName(devId);
-      const row = _el("div");
-      row.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:6px;align-items:center`;
-      const lbl = _el("div", "dev-lbl", name); lbl.title = devId;
-      row.appendChild(lbl);
+    const noDevicesMsg = _el("div", "no-prices");
+    const noPricesMsg  = _el("div", "no-prices");
+    const scrollWrap   = _el("div", "scroll-wrap");
 
-      const cells = [];
+    let priceSection, priceLbl, amBarsRow, pmBarsRow;
+
+    if (!mobile) {
+      // ── Desktop layout ───────────────────────────────────────────────────
+      const labelW   = this._config.label_width ?? 120;
+      const gridCols = `${labelW}px repeat(24, minmax(28px, 1fr))`;
+
+      priceSection = _el("div", "price-section");
+      priceLbl     = _el("div", "price-lbl");
+      const barsContainer = _el("div", "bars");
+      const barSpacer = _el("div");
+      barSpacer.style.cssText = `width:${labelW}px;flex-shrink:0`;
+      barsContainer.insertBefore(barSpacer, barsContainer.firstChild);
+      priceSection.append(priceLbl, barsContainer);
       for (let h = 0; h < 24; h++) {
-        const cell = _el("div", "cell");
-        cell.addEventListener("click", () => this._toggleSchedule(devId, h));
-        row.appendChild(cell);
-        cells.push({ el: cell, devId, hour: h });
+        const col = _el("div", "bar-col");
+        const barPrice = _el("div", "bar-price");
+        const bar = _el("div", "bar");
+        col.append(barPrice, bar);
+        barsContainer.appendChild(col);
+        barEls[h] = { col, bar, barPrice };
       }
-      gridScroll.appendChild(row);
-      deviceRows.push({ devId, lbl, cells });
+
+      const gridScroll = _el("div", "grid-scroll");
+      const hourHeaderRow = _el("div");
+      hourHeaderRow.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:2px 6px;align-items:center`;
+      hourHeaderRow.appendChild(_el("div")); // empty label column
+      for (let h = 0; h < 24; h++) {
+        const cell = _el("div", "gh", String(h));
+        hourHeaderRow.appendChild(cell);
+        hourHeaderCells[h] = cell;
+      }
+      gridScroll.appendChild(hourHeaderRow);
+
+      for (const devId of devices) {
+        const name = this._deviceName(devId);
+        const row  = _el("div");
+        row.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;margin:6px;align-items:center`;
+        const lbl = _el("div", "dev-lbl", name); lbl.title = devId;
+        row.appendChild(lbl);
+        const cells = [];
+        for (let h = 0; h < 24; h++) {
+          const cell = _el("div", "cell");
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          row.appendChild(cell);
+          cells.push({ el: cell, devId, hour: h });
+        }
+        gridScroll.appendChild(row);
+        deviceRows.push({ devId, lbl, cells });
+      }
+      gridScroll.appendChild(noDevicesMsg);
+      scrollWrap.append(priceSection, noPricesMsg, gridScroll);
+
+    } else {
+      // ── Mobile layout: prices → labels → cells per half-day ─────────────
+      // Order: 0-11 bars, 0-11 hour labels, device cells 0-11,
+      //        divider, 12-23 bars, 12-23 hour labels, device cells 12-23
+      priceLbl = _el("div", "price-lbl"); // hidden – kept for _update compat
+      priceLbl.style.display = "none";
+
+      const gridCols12 = "repeat(12, 1fr)";
+      const rowStyle   = `display:grid;grid-template-columns:${gridCols12};gap:1px;margin:1px 2px;align-items:center`;
+
+      // Build bar rows
+      amBarsRow = _el("div", "mobile-bars");
+      pmBarsRow = _el("div", "mobile-bars");
+      for (let h = 0; h < 24; h++) {
+        const col = _el("div", "bar-col");
+        const barPrice = _el("div", "bar-price");
+        const bar = _el("div", "bar");
+        col.append(barPrice, bar);
+        (h < 12 ? amBarsRow : pmBarsRow).appendChild(col);
+        barEls[h] = { col, bar, barPrice };
+      }
+
+      // Build hour header rows
+      const amHeaderRow = _el("div"); amHeaderRow.style.cssText = rowStyle;
+      const pmHeaderRow = _el("div"); pmHeaderRow.style.cssText = rowStyle;
+      for (let h = 0; h < 24; h++) {
+        const cell = _el("div", "gh", String(h));
+        (h < 12 ? amHeaderRow : pmHeaderRow).appendChild(cell);
+        hourHeaderCells[h] = cell;
+      }
+
+      // Build per-device AM and PM cell rows
+      const amDeviceRows = []; // { devId, lbl, pmLbl, amRow, pmRow, cells }
+      for (const devId of devices) {
+        const name  = this._deviceName(devId);
+        const cells = new Array(24);
+        const lbl   = _el("div", "dev-name-mobile", name); lbl.title = devId;
+        const pmLbl = _el("div", "dev-name-mobile", name); pmLbl.title = devId;
+        const amRow = _el("div"); amRow.style.cssText = rowStyle;
+        const pmRow = _el("div"); pmRow.style.cssText = rowStyle;
+        for (let h = 0; h < 24; h++) {
+          const cell = _el("div", "cell mobile-cell");
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          (h < 12 ? amRow : pmRow).appendChild(cell);
+          cells[h] = { el: cell, devId, hour: h };
+        }
+        amDeviceRows.push({ devId, lbl, pmLbl, amRow, pmRow, cells });
+        deviceRows.push({ devId, lbl, pmLbl, cells });
+      }
+
+      // Assemble in display order: AM block, divider, PM block
+      noPricesMsg.style.display = "none";
+      scrollWrap.appendChild(noPricesMsg);
+      scrollWrap.appendChild(amBarsRow);
+      scrollWrap.appendChild(amHeaderRow);
+      for (const { lbl, amRow } of amDeviceRows) {
+        scrollWrap.appendChild(lbl);
+        scrollWrap.appendChild(amRow);
+      }
+      const divider = _el("div", "divider"); scrollWrap.appendChild(divider);
+      scrollWrap.appendChild(pmBarsRow);
+      scrollWrap.appendChild(pmHeaderRow);
+      for (const { pmLbl, pmRow } of amDeviceRows) {
+        scrollWrap.appendChild(pmLbl);
+        scrollWrap.appendChild(pmRow);
+      }
+      scrollWrap.appendChild(noDevicesMsg);
     }
 
-    const noDevicesMsg = _el("div", "no-prices");
-    gridScroll.appendChild(noDevicesMsg);
-
-    // Shared horizontal scroll container: price bars + schedule grid scroll together (TODO 5)
-    const scrollWrap = _el("div", "scroll-wrap");
-    scrollWrap.append(priceSection, noPricesMsg, gridScroll);
     card.appendChild(scrollWrap);
 
     // ── Footer ───────────────────────────────────────────────────────────────
@@ -543,6 +647,7 @@ class SpotSchedulerCard extends HTMLElement {
       prevBtn, nextBtn, dateLbl, pricesNote,
       legendSpans,
       priceSection, noPricesMsg, priceLbl, barEls,
+      amBarsRow, pmBarsRow,
       hourHeaderCells,
       deviceRows, noDevicesMsg, saveHint,
     };
@@ -571,7 +676,7 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Header text
     d.titleEl.textContent = this._config.title || this._tr("title");
-    d.subtitleEl.textContent = this._tr("subtitle");
+    d.subtitleEl.textContent = this._isMobile ? this._tr("subtitle_mobile") : this._tr("subtitle");
 
     // Stats visibility + values – show for selected day
     const dayPriceValues = Object.values(dayPrices);
@@ -608,7 +713,12 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Price bars – update each bar's style/class in place
     if (pricesLoaded) {
-      d.priceSection.style.display = "";
+      if (d.amBarsRow) {
+        d.amBarsRow.style.display = "flex";
+        d.pmBarsRow.style.display = "flex";
+      } else {
+        d.priceSection.style.display = "";
+      }
       d.noPricesMsg.style.display = "none";
       d.priceLbl.textContent = this._tr("price_row_label");
 
@@ -616,7 +726,8 @@ class SpotSchedulerCard extends HTMLElement {
       for (let h = 0; h < 24; h++) {
         const { col, bar, barPrice } = d.barEls[h];
         const p = dayPrices[h];
-        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 88) + 3 : 2;
+        const scale = this._isMobile ? 28 : 88;
+        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * scale) + 3 : 2;
         const color = p != null ? this._priceColor(p) : "var(--secondary-background-color)";
         const isExp = expHours.has(h);
 
@@ -634,7 +745,12 @@ class SpotSchedulerCard extends HTMLElement {
         }
       }
     } else {
-      d.priceSection.style.display = "none";
+      if (d.amBarsRow) {
+        d.amBarsRow.style.display = "none";
+        d.pmBarsRow.style.display = "none";
+      } else {
+        d.priceSection.style.display = "none";
+      }
       d.noPricesMsg.style.display = "";
       d.noPricesMsg.textContent = this._tr("prices_pending");
     }
@@ -644,6 +760,7 @@ class SpotSchedulerCard extends HTMLElement {
       // Update device label dynamically (friendly_name may load later)
       const name = this._deviceName(row.devId);
       if (row.lbl.textContent !== name) row.lbl.textContent = name;
+      if (row.pmLbl && row.pmLbl.textContent !== name) row.pmLbl.textContent = name;
 
       for (const { el, devId, hour } of row.cells) {
         const state = this._isScheduled(devId, hour);
