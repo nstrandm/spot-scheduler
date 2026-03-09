@@ -138,6 +138,7 @@ device_names:
   switch.ev_charger: "EV charger"
 expensive_hours: 3
 show_price_labels: true
+layout: auto
 ```
 
 ### Card options
@@ -149,10 +150,13 @@ show_price_labels: true
 | `expensive_hours` | int | auto-detected | Most expensive hours to highlight in red. If omitted, uses the value from integration settings. |
 | `title` | string | `"SpotScheduler"` | Card title (overrides translated default) |
 | `show_price_labels` | bool | `false` | Show the cent price on top of each price bar |
-| `label_width` | int | `120` | Width in px of the device name column |
+| `label_width` | int | `120` | Width in px of the device name column (desktop layout only) |
+| `layout` | string | `"auto"` | Card layout: `auto` (split on narrow screens), `split` (always AM/PM rows), `vertical` (hours as rows, devices as columns) |
 | `status_entity` | string | auto-detected | Override the sensor used to read prices/schedules |
 
 > **Note:** `devices` and `expensive_hours` are read from the integration automatically if not set in the card YAML. Values explicitly set in the card YAML always take priority over integration settings. The card reads schedule data from the integration — it does not control devices on its own.
+
+> **Visual editor:** All card options including `layout` are available in the card's built-in visual editor — no YAML editing required.
 
 ### Recommended dashboard layout
 

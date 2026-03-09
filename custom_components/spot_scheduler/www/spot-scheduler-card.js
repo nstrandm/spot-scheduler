@@ -31,6 +31,10 @@ const TRANSLATIONS = {
     editor_device_names:      "Device names on card",
     editor_no_devices:        "No devices detected yet. Save the card first.",
     editor_device_placeholder: "Friendly name…",
+    editor_layout:            "Layout",
+    layout_auto:              "Auto (split on narrow screens)",
+    layout_split:             "Always split (AM / PM rows)",
+    layout_vertical:          "Vertical (hours as rows)",
   },
   fi: {
     title: "Spot Scheduler",
@@ -60,6 +64,10 @@ const TRANSLATIONS = {
     editor_device_names:      "Laitteiden nimet kortilla",
     editor_no_devices:        "Laitteita ei havaittu. Tallenna kortti ensin.",
     editor_device_placeholder: "Kutsumanimi…",
+    editor_layout:            "Asettelu",
+    layout_auto:              "Automaattinen (jaettu kapeilla näytöillä)",
+    layout_split:             "Aina jaettu (AP / IP rivit)",
+    layout_vertical:          "Pystysuora (tunnit riveittäin)",
   },
 };
 
@@ -133,7 +141,7 @@ const STYLES = `
     font-size:13px; }
   .save-hint { text-align:right; font-size:10px; color:var(--disabled-text-color);
     margin-top:11px; font-style:italic; }
-  .bar-price { font-size:11px; color:var(--secondary-text-color); text-align:center;
+  .bar-price { font-size:13px; color:var(--secondary-text-color); text-align:center;
     line-height:1.2; min-height:12px; }
 
   /* ── Mobile layout ──────────────────────────────────────────────────────── */
@@ -152,6 +160,25 @@ const STYLES = `
   .mobile-bars { display:flex; align-items:flex-end; gap:1px; height:55px; overflow:hidden; margin-bottom:2px; }
   .mobile-bars .bar-col { min-width:0; }
   .cell.mobile-cell { min-height:20px; font-size:11px; margin:0; }
+
+  /* ── Vertical layout ────────────────────────────────────────────────────── */
+  .v-grid { display:grid; gap:2px; }
+  .v-hour { font-size:14px; font-weight:700; color:var(--text-color);
+    display:flex; align-items:center; justify-content:flex-end; padding-right:6px; }
+  .v-hour.cur { color:var(--primary-color); }
+  .v-bar-wrap { display:flex; align-items:center; padding:2px 0; height:100%; }
+  .v-bar { height:100%; border-radius:2px 0 0 2px; min-width:2px; margin-left:auto; }
+  .v-bar.exp { box-shadow:0 0 5px color-mix(in srgb, var(--error-color,#f87171) 65%,transparent); }
+  .v-dev-hdr { font-size:11px; font-weight:600; color:var(--primary-text-color);
+    display:flex; align-items:center; justify-content:flex-start;
+    writing-mode:vertical-rl; text-orientation:mixed; transform:rotate(180deg);
+    overflow:hidden; padding:4px 0 2px; min-height:60px; }
+  .v-price-hdr { font-size:10px; color:var(--disabled-text-color);
+    display:flex; align-items:flex-end; padding-bottom:4px; }
+  .v-bar-price { font-size:12px; color:var(--text-color);
+    padding-left:3px; white-space:nowrap; flex-shrink:0; }
+  .cell.v-cell { aspect-ratio:1; height:unset; min-height:unset; max-height:48px;
+    font-size:11px; margin:2px; border-radius:3px;  }
 `;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -218,6 +245,7 @@ class SpotSchedulerCard extends HTMLElement {
       expensive_hours: 3,    // populated from sensor if not in config
       label_width: 120,
       show_price_labels: false,
+      layout: "auto",
       ...config,
       // Track whether values came from YAML so sensor doesn't override them
       _devicesFromYaml: !!(config.devices?.length),
@@ -428,7 +456,8 @@ class SpotSchedulerCard extends HTMLElement {
   _buildDOM() {
     const root = this.shadowRoot;
     root.innerHTML = "";
-    const mobile = !!this._isMobile;
+    const layout = this._computeLayout(); // "desktop" | "split" | "vertical"
+    const mobile = layout === "split";
 
     const style = document.createElement("style");
     style.textContent = STYLES;
@@ -457,7 +486,7 @@ class SpotSchedulerCard extends HTMLElement {
     maxBox.appendChild(maxLabel); maxBox.appendChild(maxValue);
     statsEl.appendChild(minBox); statsEl.appendChild(maxBox);
     header.appendChild(statsEl);
-    if (mobile) { header.classList.add("mobile"); card.classList.add("mobile-card"); }
+    if (layout !== "desktop") { header.classList.add("mobile"); card.classList.add("mobile-card"); }
     card.appendChild(header);
 
     // ── Date navigation ──────────────────────────────────────────────────────
@@ -515,7 +544,78 @@ class SpotSchedulerCard extends HTMLElement {
 
     let priceSection, priceLbl, amBarsRow, pmBarsRow;
 
-    if (!mobile) {
+    if (layout === "vertical") {
+      // ── Vertical layout: hours as rows, devices as columns ───────────────
+      // Grid columns: [price bar 80px] [hour 32px] [device cols...]
+      const nDev    = devices.length;
+      const devCols = nDev ? `repeat(${nDev}, minmax(44px, 80px))` : "";
+      const gridCols = `80px 32px ${devCols}`;
+
+      priceSection = _el("div", "price-section");
+      priceLbl     = _el("div", "price-lbl");
+      priceSection.style.display = "none"; // not used in vertical (bars inline)
+
+      const vGrid = _el("div", "v-grid");
+      vGrid.style.cssText = `display:grid;grid-template-columns:${gridCols};gap:2px;align-items:stretch`;
+
+      // Header row: price label + blank hour col + device names
+      vGrid.appendChild(_el("div", "v-price-hdr", "c/kWh"));
+      vGrid.appendChild(_el("div")); // hour column blank
+      for (const devId of devices) {
+        const hdr = _el("div", "v-dev-hdr", this._deviceName(devId));
+        hdr.title = devId;
+        vGrid.appendChild(hdr);
+        // store as lbl ref so _update() can refresh device name
+      }
+
+      // 24 hour rows
+      for (let h = 0; h < 24; h++) {
+        // Price bar cell (col 1)
+        const barWrap = _el("div", "v-bar-wrap");
+        const barPrice = _el("div", "bar-price v-bar-price");
+        const bar     = _el("div", "v-bar");
+        barWrap.append(barPrice, bar); // price text left, bar grows from right
+        vGrid.appendChild(barWrap);
+        barEls[h] = { col: barWrap, bar, barPrice };
+
+        // Hour label (col 2)
+        const hourLbl = _el("div", "v-hour", String(h));
+        vGrid.appendChild(hourLbl);
+        hourHeaderCells[h] = hourLbl;
+
+        // Device cells
+        for (const devId of devices) {
+          const cell = _el("div", "cell v-cell");
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          vGrid.appendChild(cell);
+        }
+      }
+
+      // Build deviceRows for _update() iteration
+      // cells[h] must point to the right cell element
+      for (let di = 0; di < devices.length; di++) {
+        const devId = devices[di];
+        const cells = [];
+        // Re-query cells by iterating grid children:
+        // Row i = header(row 0) or hour row (rows 1..24)
+        // Each row has 2 + nDev children: barWrap, hourLbl, [cells...]
+        // Cell for device di in hour h is at child index: (h+1)*(2+nDev) + 2 + di
+        const allChildren = Array.from(vGrid.children);
+        for (let h = 0; h < 24; h++) {
+          const rowStart = (h + 1) * (2 + nDev);
+          const el = allChildren[rowStart + 2 + di];
+          cells.push({ el, devId, hour: h });
+        }
+        // Device name header element for this device
+        const lblEl = vGrid.children[2 + di]; // header row: [0]=blank, [1]=price-hdr, [2+di]=device hdrs
+        deviceRows.push({ devId, lbl: lblEl, cells });
+      }
+
+      noDevicesMsg.style.cssText = "grid-column:1/-1;text-align:center;padding:20px;color:var(--disabled-text-color);font-size:13px;";
+      vGrid.appendChild(noDevicesMsg);
+      scrollWrap.append(noPricesMsg, vGrid);
+
+    } else if (!mobile) {
       // ── Desktop layout ───────────────────────────────────────────────────
       const labelW   = this._config.label_width ?? 120;
       const gridCols = `${labelW}px repeat(24, minmax(28px, 1fr))`;
@@ -676,7 +776,8 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Header text
     d.titleEl.textContent = this._config.title || this._tr("title");
-    d.subtitleEl.textContent = this._isMobile ? this._tr("subtitle_mobile") : this._tr("subtitle");
+    const layout = this._computeLayout();
+    d.subtitleEl.textContent = layout !== "desktop" ? this._tr("subtitle_mobile") : this._tr("subtitle");
 
     // Stats visibility + values – show for selected day
     const dayPriceValues = Object.values(dayPrices);
@@ -723,21 +824,31 @@ class SpotSchedulerCard extends HTMLElement {
       d.priceLbl.textContent = this._tr("price_row_label");
 
       const showPriceLabels = !!this._config.show_price_labels;
+      const isVertical = layout === "vertical";
       for (let h = 0; h < 24; h++) {
         const { col, bar, barPrice } = d.barEls[h];
         const p = dayPrices[h];
-        const scale = this._isMobile ? 28 : 88;
-        const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * scale) + 3 : 2;
-        const color = p != null ? this._priceColor(p) : "var(--secondary-background-color)";
         const isExp = expHours.has(h);
+        const color = p != null ? this._priceColor(p) : "var(--secondary-background-color)";
 
-        bar.style.height = barH + "px";
+        if (isVertical) {
+          // Horizontal bar: width-based, fills bar-wrap cell
+          const pct = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * 90) + 5 : 3;
+          bar.style.width  = pct + "%";
+          bar.style.height = "100%";
+          bar.className = isExp ? "v-bar exp" : "v-bar";
+        } else {
+          const scale = layout === "split" ? 28 : 88;
+          const barH = p != null ? Math.round((Math.abs(p) / (maxP || 1)) * scale) + 3 : 2;
+          bar.style.height = barH + "px";
+          bar.style.width  = "";
+          bar.className = isExp ? "bar exp" : "bar";
+        }
         bar.style.background = color;
-        bar.className = isExp ? "bar exp" : "bar";
         col.title = `${h}:00 – ${this._fmtPrice(p)}`;
 
         // Price label above each bar (TODO 4)
-        if (showPriceLabels && p != null) {
+        if ((showPriceLabels || isVertical) && p != null) {
           barPrice.textContent = (p * 100).toFixed(1);
           barPrice.style.display = "";
         } else {
@@ -767,7 +878,8 @@ class SpotSchedulerCard extends HTMLElement {
         const isExp = expHours.has(hour);
         const isCur = isToday && hour === curHour;
 
-        let cls = "cell";
+        const cellBase = layout === "vertical" ? "cell v-cell" : layout === "split" ? "cell mobile-cell" : "cell";
+        let cls = cellBase;
         let icon = "";
         if (state === true)        { cls += " on";    icon = "✔"; }
         else if (state === false)  { cls += " off";   icon = "✕"; }
@@ -781,9 +893,10 @@ class SpotSchedulerCard extends HTMLElement {
       }
     }
 
-    // Hour header: highlight current hour (TODO 2)
+    // Hour header: highlight current hour
+    const baseHourCls = layout === "vertical" ? "v-hour" : "gh";
     for (let h = 0; h < 24; h++) {
-      d.hourHeaderCells[h].className = (isToday && h === curHour) ? "gh cur" : "gh";
+      d.hourHeaderCells[h].className = (isToday && h === curHour) ? `${baseHourCls} cur` : baseHourCls;
     }
 
     // No-devices message
@@ -792,6 +905,13 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Footer
     d.saveHint.textContent = this._tr("save_hint");
+  }
+
+  _computeLayout() {
+    const cfg = this._config.layout ?? "auto";
+    if (cfg === "vertical") return "vertical";
+    if (cfg === "split")    return "split";
+    return this._isMobile ? "split" : "desktop";
   }
 
   getCardSize() { return 6; }
@@ -857,6 +977,7 @@ class SpotSchedulerCardEditor extends HTMLElement {
       show_price_labels: this._config.show_price_labels ?? false,
       label_width:       this._config.label_width        ?? 120,
       status_entity:     this._config.status_entity      ?? "",
+      layout:            this._config.layout             ?? "auto",
     };
   }
 
@@ -879,6 +1000,11 @@ class SpotSchedulerCardEditor extends HTMLElement {
       { name: "show_price_labels", label: "editor_show_price_labels", selector: { boolean: {} } },
       { name: "label_width",       label: "editor_label_width",       selector: { number: { min: 60, max: 300, step: 10, mode: "box" } } },
       { name: "status_entity",     label: "editor_status_entity",     selector: { entity: { domain: "sensor" } } },
+      { name: "layout", label: "editor_layout", selector: { select: { options: [
+        { value: "auto",     label: _t(this._hass?.locale?.language || "en", "layout_auto") },
+        { value: "split",    label: _t(this._hass?.locale?.language || "en", "layout_split") },
+        { value: "vertical", label: _t(this._hass?.locale?.language || "en", "layout_vertical") },
+      ], mode: "dropdown" } } },
     ];
 
     const form = document.createElement("ha-form");
@@ -895,6 +1021,7 @@ class SpotSchedulerCardEditor extends HTMLElement {
       this._config.show_price_labels = v.show_price_labels;
       this._config.label_width       = v.label_width;
       if (v.status_entity)     this._config.status_entity     = v.status_entity;  else delete this._config.status_entity;
+      this._config.layout = v.layout ?? "auto";
       this._fire();
       // Refresh device list if status_entity changed
       this._renderDeviceNames();
