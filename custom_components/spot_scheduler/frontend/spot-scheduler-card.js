@@ -159,7 +159,7 @@ const STYLES = `
     display:flex; align-items:center; }
   .mobile-bars { display:flex; align-items:flex-end; gap:1px; height:55px; overflow:hidden; margin-bottom:2px; }
   .mobile-bars .bar-col { min-width:0; }
-  .cell.mobile-cell { min-height:20px; font-size:11px; margin:0; }
+  .cell.mobile-cell { min-height:20px; max-height:48px; font-size:11px; margin:2px; }
 
   /* ── Vertical layout ────────────────────────────────────────────────────── */
   .v-grid { display:grid; gap:2px; }

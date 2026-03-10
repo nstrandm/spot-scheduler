@@ -71,6 +71,7 @@ The Lovelace card JS resource is registered automatically when the integration s
 ### Manual installation
 
 1. Copy the `custom_components/spot_scheduler/` folder to your HA `config/custom_components/` directory
+   - The Lovelace card JS is located at `custom_components/spot_scheduler/frontend/spot-scheduler-card.js`
 2. **Restart Home Assistant**
 3. Go to **Settings → Devices & Services → + Add integration → SpotScheduler**
 
@@ -161,6 +162,8 @@ layout: auto
 ### Recommended dashboard layout
 
 Use the **Masonry** layout (the default). On mobile, Masonry automatically uses a single full-width column, giving the card maximum width for the 24-column schedule grid.
+
+On narrow screens (below 520 CSS px) the card automatically switches to the split AM/PM layout. If the auto-detection doesn't trigger on your device (e.g. large Android phones or tablets), set `layout: split` or `layout: vertical` explicitly in the card config.
 
 ---
 
@@ -269,4 +272,4 @@ The card language follows the **HA user profile** setting (`hass.locale.language
 | English | `en` | ✅ |
 | Finnish | `fi` | ✅ |
 
-To add a new language, add an entry to the `TRANSLATIONS` object in `www/spot-scheduler-card.js` and a new file under `custom_components/spot_scheduler/translations/`.
+To add a new language, add an entry to the `TRANSLATIONS` object in `frontend/spot-scheduler-card.js` and a new file under `custom_components/spot_scheduler/translations/`.

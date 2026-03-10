@@ -1,4 +1,4 @@
-"""SpotScheduler – schedule devices by Nord Pool spot prices (HA core integration)."""
+"""Spot Scheduler – schedule devices by Nord Pool spot prices (HA core integration)."""
 from __future__ import annotations
 
 import asyncio
@@ -24,7 +24,6 @@ from .const import (
     DOMAIN,
     STORAGE_KEY,
     STORAGE_VERSION,
-    CARD_VERSION,
     NORDPOOL_DOMAIN,
     CONF_NORDPOOL_CONFIG_ENTRY,
     CONF_DEVICES,
@@ -77,7 +76,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     # Register the Lovelace card JS resource (once, idempotent)
-    await _register_frontend(hass)
+    from . import frontend
+    await frontend.async_register(hass)
 
     nordpool_entry_id = _get_nordpool_entry_id(entry)
     if not hass.config_entries.async_get_entry(nordpool_entry_id):
@@ -209,71 +209,6 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
         )
         await hass.config_entries.async_reload(entry.entry_id)
 
-
-# ── Frontend resource registration ─────────────────────────────────────────────
-
-CARD_URL = f"/api/{DOMAIN}/static/spot-scheduler-card.js?v={CARD_VERSION}"
-
-async def _register_frontend(hass: HomeAssistant) -> None:
-    """Register the static HTTP path (once) and keep the Lovelace resource URL current.
-
-    HACS serves integration files under custom_components/, not /hacsfiles/.
-    We register a static path ourselves so the card works regardless of
-    whether the integration was installed via HACS or manually.
-
-    The static-path registration is guarded to run only once per HA process
-    (re-registering the same path raises an error).  The Lovelace resource
-    URL check runs on every call so version bumps and first-time registrations
-    are handled even when Lovelace was not ready at the first startup attempt.
-    """
-    # ── Static HTTP path (once per HA process) ─────────────────────────────
-    if not hass.data.get(f"{DOMAIN}_static_registered"):
-        import pathlib
-        static_path = str(pathlib.Path(__file__).parent / "www")
-        static_url  = f"/api/{DOMAIN}/static"
-
-        try:
-            from homeassistant.components.http import StaticPathConfig
-            await hass.http.async_register_static_paths(
-                [StaticPathConfig(static_url, static_path, True)]
-            )
-        except (ImportError, AttributeError):
-            try:
-                hass.http.register_static_path(static_url, static_path, cache_headers=True)
-            except Exception as exc:
-                _LOGGER.warning("Could not register static path: %s", exc)
-
-        hass.data[f"{DOMAIN}_static_registered"] = True
-
-    # ── Lovelace resource URL (every call – idempotent) ────────────────────
-    try:
-        from homeassistant.components.lovelace.resources import (
-            ResourceStorageCollection,
-        )
-        resources: ResourceStorageCollection | None = hass.data.get("lovelace_resources")
-        if resources is not None:
-            existing = [
-                r for r in resources.async_items()
-                if DOMAIN in r.get("url", "")
-            ]
-            if not existing:
-                await resources.async_create_item({"res_type": "module", "url": CARD_URL})
-                _LOGGER.info("Registered Lovelace resource: %s", CARD_URL)
-            elif existing[0].get("url") != CARD_URL:
-                # Version changed – update the registered URL so browsers fetch the new file
-                await resources.async_update_item(
-                    existing[0]["id"], {"res_type": "module", "url": CARD_URL}
-                )
-                _LOGGER.info("Updated Lovelace resource URL to: %s", CARD_URL)
-            else:
-                _LOGGER.debug("Lovelace resource already up-to-date: %s", CARD_URL)
-        else:
-            _LOGGER.debug(
-                "Lovelace resources collection not available yet – "
-                "will be registered on next reload or HA restart."
-            )
-    except Exception as exc:
-        _LOGGER.debug("Could not auto-register Lovelace resource: %s", exc)
 
 
 # ── Nord Pool state tracking ───────────────────────────────────────────────────
