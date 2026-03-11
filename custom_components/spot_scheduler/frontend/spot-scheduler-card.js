@@ -35,6 +35,7 @@ const TRANSLATIONS = {
     layout_auto:              "Auto (split on narrow screens)",
     layout_split:             "Always split (AM / PM rows)",
     layout_vertical:          "Vertical (hours as rows)",
+    layout_desktop:           "Horizontal (always wide, scrollable)",
   },
   fi: {
     title: "Spot Scheduler",
@@ -68,6 +69,7 @@ const TRANSLATIONS = {
     layout_auto:              "Automaattinen (jaettu kapeilla näytöillä)",
     layout_split:             "Aina jaettu (AP / IP rivit)",
     layout_vertical:          "Pystysuora (tunnit riveittäin)",
+    layout_desktop:           "Vaakasuora (aina leveä, vieritettävä)",
   },
 };
 
@@ -86,23 +88,23 @@ const STYLES = `
     padding: 20px; color: var(--primary-text-color);
     box-shadow: var(--ha-card-box-shadow, var(--material-shadow-elevation-2dp));
     overflow: hidden; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
   .title { font-size:20px; font-weight:700; color:var(--primary-text-color); }
   .subtitle { font-size:13px; color:var(--secondary-text-color); margin-top:3px; }
   .stats { display:flex; gap:9px; }
   .stat-box { background:var(--secondary-background-color); border-radius:9px;
-    padding:8px 14px; text-align:center; min-width:80px; }
+    padding:8px 14px; text-align:center; min-width:50px; }
   .stat-label { font-size:11px; color:var(--secondary-text-color);
     text-transform:uppercase; letter-spacing:.8px; }
-  .stat-value { font-size:15px; font-weight:700; margin-top:2px; }
+  .stat-value { font-size:13px; font-weight:700; margin-top:2px; }
   .date-nav { display:flex; align-items:center; gap:9px; margin-bottom:14px; }
   .date-btn { background:var(--secondary-background-color); border:none;
     color:var(--secondary-text-color); width:32px; height:32px;
-    border-radius:6px; cursor:pointer; font-size:15px;
+    border-radius:6px; cursor:pointer; font-size:13px;
     display:flex; align-items:center; justify-content:center; }
   .date-btn:hover { filter:brightness(1.15); }
   .date-btn:disabled { opacity:0.3; cursor:default; filter:none; }
-  .date-lbl { font-size:15px; font-weight:600; color:var(--primary-text-color); }
+  .date-lbl { font-size:15px; font-weight:600; color:var(--primary-text-color); white-space:nowrap; }
   .prices-note { font-size:11px; color:var(--disabled-text-color); margin-left:auto; }
   .legend { display:flex; gap:13px; flex-wrap:wrap; margin-bottom:14px; }
   .leg-item { display:flex; align-items:center; gap:6px;
@@ -147,8 +149,8 @@ const STYLES = `
   /* ── Mobile layout ──────────────────────────────────────────────────────── */
   .header.mobile { flex-direction:column; align-items:stretch; gap:10px; }
   .header.mobile .stats { justify-content:flex-start; }
-  .header.mobile .stat-box { min-width:60px; padding:6px 10px; }
-  .header.mobile .stat-value { font-size:13px; }
+  .header.mobile .stat-box { min-width:30px; padding:6px 4px; }
+  .header.mobile .stat-value { font-size:11px; }
   .card.mobile-card { padding: 6px; }
   .mobile-card .prices-note { display: none; }
   .mobile-card .scroll-wrap { overflow-y: visible; }
@@ -172,13 +174,13 @@ const STYLES = `
   .v-dev-hdr { font-size:11px; font-weight:600; color:var(--primary-text-color);
     display:flex; align-items:center; justify-content:flex-start;
     writing-mode:vertical-rl; text-orientation:mixed; transform:rotate(180deg);
-    overflow:hidden; padding:4px 0 2px; min-height:60px; }
+    overflow:hidden; padding:4px 0 2px; min-height:44px; }
   .v-price-hdr { font-size:10px; color:var(--disabled-text-color);
     display:flex; align-items:flex-end; padding-bottom:4px; }
   .v-bar-price { font-size:12px; color:var(--text-color);
     padding-left:3px; white-space:nowrap; flex-shrink:0; }
-  .cell.v-cell { aspect-ratio:1; height:unset; min-height:unset; max-height:48px;
-    font-size:11px; margin:2px; border-radius:3px;  }
+  .cell.v-cell { aspect-ratio:1; height:unset; min-height:unset; max-height:32px;
+    font-size:10px; margin:1px; border-radius:3px;  }
 `;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -470,9 +472,7 @@ class SpotSchedulerCard extends HTMLElement {
     const header = _el("div", "header");
     const headerLeft = _el("div");
     const titleEl = _el("div", "title");
-    const subtitleEl = _el("div", "subtitle");
     headerLeft.appendChild(titleEl);
-    headerLeft.appendChild(subtitleEl);
     header.appendChild(headerLeft);
 
     const statsEl = _el("div", "stats");
@@ -485,7 +485,7 @@ class SpotSchedulerCard extends HTMLElement {
     const maxValue = _el("div", "stat-value max");
     maxBox.appendChild(maxLabel); maxBox.appendChild(maxValue);
     statsEl.appendChild(minBox); statsEl.appendChild(maxBox);
-    header.appendChild(statsEl);
+    if (layout === "desktop") header.appendChild(statsEl);
     if (layout !== "desktop") { header.classList.add("mobile"); card.classList.add("mobile-card"); }
     card.appendChild(header);
 
@@ -508,8 +508,11 @@ class SpotSchedulerCard extends HTMLElement {
       this._selectedDate = d.toISOString().split("T")[0];
       this._update();
     });
-    const pricesNote = _el("span", "prices-note");
-    dateNav.append(prevBtn, dateLbl, nextBtn, pricesNote);
+    if (layout !== "desktop") {
+      dateNav.append(prevBtn, dateLbl, nextBtn, statsEl);
+    } else {
+      dateNav.append(prevBtn, dateLbl, nextBtn);
+    }
     card.appendChild(dateNav);
 
     // ── Legend ────────────────────────────────────────────────────────────────
@@ -517,7 +520,7 @@ class SpotSchedulerCard extends HTMLElement {
     const legDefs = [
       { style: "background:var(--primary-color);border:1.5px solid var(--primary-color)", key: "legend_on" },
       { style: "background:var(--secondary-background-color);border:1.5px solid var(--divider-color)", key: "legend_off" },
-      { style: "background:transparent;border:1.5px solid var(--divider-color);opacity:0.4", key: "legend_unset" },
+      { style: "background:transparent;border:1.5px solid var(--divider-color)", key: "legend_unset" },
       { style: "background:var(--ha-card-background,var(--card-background-color));border:1.5px solid var(--error-color,#f87171)", key: "legend_expensive" },
       { style: "border:2.5px solid var(--warning-color, #ff9800);background:transparent", key: "legend_current" },
     ];
@@ -548,8 +551,8 @@ class SpotSchedulerCard extends HTMLElement {
       // ── Vertical layout: hours as rows, devices as columns ───────────────
       // Grid columns: [price bar 80px] [hour 32px] [device cols...]
       const nDev    = devices.length;
-      const devCols = nDev ? `repeat(${nDev}, minmax(44px, 80px))` : "";
-      const gridCols = `80px 32px ${devCols}`;
+      const devCols = nDev ? `repeat(${nDev}, minmax(25px, 45px))` : "";
+      const gridCols = `85px 45px ${devCols}`;
 
       priceSection = _el("div", "price-section");
       priceLbl     = _el("div", "price-lbl");
@@ -743,8 +746,8 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Store all mutable references
     this._dom = {
-      titleEl, subtitleEl, statsEl, minLabel, minValue, maxLabel, maxValue,
-      prevBtn, nextBtn, dateLbl, pricesNote,
+      titleEl, statsEl, minLabel, minValue, maxLabel, maxValue,
+      prevBtn, nextBtn, dateLbl,
       legendSpans,
       priceSection, noPricesMsg, priceLbl, barEls,
       amBarsRow, pmBarsRow,
@@ -777,7 +780,6 @@ class SpotSchedulerCard extends HTMLElement {
     // Header text
     d.titleEl.textContent = this._config.title || this._tr("title");
     const layout = this._computeLayout();
-    d.subtitleEl.textContent = layout !== "desktop" ? this._tr("subtitle_mobile") : this._tr("subtitle");
 
     // Stats visibility + values – show for selected day
     const dayPriceValues = Object.values(dayPrices);
@@ -803,7 +805,6 @@ class SpotSchedulerCard extends HTMLElement {
     d.dateLbl.textContent = dispDate;
     d.prevBtn.disabled = !this._canGoPrev();
     d.nextBtn.disabled = !this._canGoNext();
-    d.pricesNote.textContent = this._tr("prices_note");
 
     // Legend text
     for (const { span, key } of d.legendSpans) {
@@ -911,6 +912,7 @@ class SpotSchedulerCard extends HTMLElement {
     const cfg = this._config.layout ?? "auto";
     if (cfg === "vertical") return "vertical";
     if (cfg === "split")    return "split";
+    if (cfg === "desktop")  return "desktop";
     return this._isMobile ? "split" : "desktop";
   }
 
@@ -1003,6 +1005,7 @@ class SpotSchedulerCardEditor extends HTMLElement {
       { name: "layout", label: "editor_layout", selector: { select: { options: [
         { value: "auto",     label: _t(this._hass?.locale?.language || "en", "layout_auto") },
         { value: "split",    label: _t(this._hass?.locale?.language || "en", "layout_split") },
+        { value: "desktop",  label: _t(this._hass?.locale?.language || "en", "layout_desktop") },
         { value: "vertical", label: _t(this._hass?.locale?.language || "en", "layout_vertical") },
       ], mode: "dropdown" } } },
     ];
