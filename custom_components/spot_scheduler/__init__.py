@@ -114,10 +114,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Track which devices were configured at setup time so the update_listener
         # can avoid a full reload when only number-entity options change.
         "configured_devices": set(_merged_cfg.get(CONF_DEVICES, [])),
+        # Keys loaded from persistent storage at startup — used by _fetch_prices_for_date
+        # to suppress auto-select re-runs on HA restart (prices already acted on).
+        "_prices_in_storage": set(loaded_prices.keys()),
+        # Dates for which auto-select has already run this session.
+        "_auto_selected": set(),
     }
 
+    today = dt_util.now().date()
+    # Fetch the previous CET-calendar day first.  Nord Pool date "YYYY-MM-DD"
+    # starts at CET midnight, so for UTC+ timezones the local early morning
+    # hours (e.g. Finnish 00:00–00:45) live in the *previous* date's response.
+    # Fetching that date fills in the missing hour-0 bucket before the main fetch.
+    await _fetch_prices_for_date(hass, entry, today - timedelta(days=1), auto_select=False)
+
     # Fetch today's prices once on startup; warn via Repairs if it fails
-    ok = await _fetch_prices_for_date(hass, entry, dt_util.now().date())
+    ok = await _fetch_prices_for_date(hass, entry, today)
     if not ok:
         _maybe_raise_unavailable_issue(hass)
 
@@ -280,7 +292,11 @@ async def _poll_tomorrow_if_needed(hass: HomeAssistant, entry: ConfigEntry) -> N
             return
 
         tomorrow = dt_util.now().date() + timedelta(days=1)
-        if tomorrow.isoformat() in data.get("prices", {}):
+        # Require at least 20 hours to consider tomorrow's prices "complete".
+        # A single fill-in fetch (from today's Nord Pool response) may have
+        # stored only hour 0 of tomorrow; that is not enough to skip the fetch.
+        tomorrow_prices = data.get("prices", {}).get(tomorrow.isoformat(), {})
+        if len(tomorrow_prices) >= 20:
             data["tomorrow_fetched"] = True
             return
 
@@ -310,10 +326,21 @@ async def _on_midnight(hass: HomeAssistant, entry: ConfigEntry) -> None:
 # ── Price fetching ─────────────────────────────────────────────────────────────
 
 async def _fetch_prices_for_date(
-    hass: HomeAssistant, entry: ConfigEntry, target_date: date
+    hass: HomeAssistant, entry: ConfigEntry, target_date: date, *, auto_select: bool = True
 ) -> bool:
     """
-    Call nordpool.get_prices_for_date and store hourly averages.
+    Call nordpool.get_prices_for_date and store hourly averages by local date.
+
+    Nord Pool interprets the date in CET (UTC+1).  For UTC+ timezones this
+    means a single Nord Pool response spans two local calendar days: most hours
+    belong to the requested local date, but the early morning hours (e.g.
+    Finnish 00:00–00:45) belong to the *next* local date.  parse_hourly_prices
+    returns a per-local-date dict; we merge all of them into data["prices"] so
+    that consecutive fetches build a complete 24-hour picture.
+
+    auto_select=False suppresses the auto-schedule logic even if prices are new.
+    Use this for the fill-in fetch of the previous CET day on startup.
+
     Returns True on success, False on any failure.
     """
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
@@ -349,56 +376,78 @@ async def _fetch_prices_for_date(
     _LOGGER.debug("Nord Pool raw response keys: %s", list(result.keys()) if isinstance(result, dict) else type(result))
 
     # Parse: { area_code: [ {start, end, price}, … ] }
-    # 15-min slots are averaged into hourly buckets via logic.parse_hourly_prices.
+    # parse_hourly_prices returns {local_date: {hour: avg_price}} so a single
+    # Nord Pool response (one CET day) may contribute hours to two local dates.
     tz = dt_util.get_time_zone(hass.config.time_zone)
-    averaged: dict[int, float] = {}
+    all_by_date: dict[str, dict[int, float]] = {}
     try:
         for area_data in result.values():
             if not isinstance(area_data, list):
                 continue
             parsed = parse_hourly_prices(area_data, tz)
+            _LOGGER.debug(
+                "Nord Pool %s: %d raw slots → local dates/hours: %s",
+                date_str,
+                len(area_data),
+                {d: sorted(h.keys()) for d, h in parsed.items()},
+            )
             # Merge (in practice there's usually one area per entry)
-            for h, p in parsed.items():
-                averaged[h] = p
+            for local_date, hours in parsed.items():
+                all_by_date.setdefault(local_date, {}).update(hours)
     except Exception as exc:
         _LOGGER.error("Failed to parse Nord Pool price data for %s: %s", date_str, exc)
         return False
 
-    if not averaged:
+    if not all_by_date:
         _LOGGER.debug("No usable price slots in Nord Pool response for %s", date_str)
         return False
-
-    prices_list = list(averaged.values())
 
     if entry.entry_id not in hass.data.get(DOMAIN, {}):
         return False   # entry was unloaded while we awaited
 
     data = hass.data[DOMAIN][entry.entry_id]
 
-    # Prices are new if this date wasn't already in the store (loaded from
-    # persistent storage at startup).  Re-fetching known prices on HA restart
-    # should NOT re-trigger auto-select — it already ran when prices first arrived.
-    prices_are_new = date_str not in data["prices"]
+    # Prices are "new" (warrant auto-select) when:
+    #   1. auto_select is enabled for this call (fill-in fetches pass False), AND
+    #   2. auto-select hasn't already run for this date this session, AND
+    #   3. prices for this date were NOT in persistent storage at startup
+    #      (restart guard: avoid re-running auto-select on known prices).
+    prices_are_new = (
+        auto_select
+        and date_str not in data.get("_auto_selected", set())
+        and date_str not in data.get("_prices_in_storage", set())
+    )
 
-    data["prices"][date_str] = averaged
+    # Merge all local-date buckets.  This preserves hours contributed by earlier
+    # fetches (e.g. the fill-in fetch added hour 0; the main fetch adds hours 1–23).
+    for local_date, hours in all_by_date.items():
+        data["prices"].setdefault(local_date, {}).update(hours)
 
-    if date_str == dt_util.now().date().isoformat():
-        data["min_price"] = min(prices_list)
-        data["max_price"] = max(prices_list)
+    # Refresh today's min/max using the now-merged data for today's local date.
+    today_str = dt_util.now().date().isoformat()
+    if date_str == today_str:
+        today_prices = list(data["prices"].get(today_str, {}).values())
+        if today_prices:
+            data["min_price"] = min(today_prices)
+            data["max_price"] = max(today_prices)
 
     # Clear any outstanding Repairs issue
     ir.async_delete_issue(hass, DOMAIN, ISSUE_NORDPOOL_UNAVAILABLE)
 
-    _LOGGER.debug("Stored %d hourly prices for %s", len(averaged), date_str)
+    _LOGGER.debug(
+        "Stored prices for local date(s) %s (Nord Pool request: %s)",
+        sorted(all_by_date.keys()),
+        date_str,
+    )
     hass.bus.async_fire(
         f"{DOMAIN}_prices_updated",
         {"entry_id": entry.entry_id, "date": date_str},
     )
 
     # Auto-select cheapest / block expensive only when prices arrive for the
-    # first time for this date.  Skipping on restart prevents mid-hour device
-    # state changes caused by re-running the schedule logic on stale data.
+    # first time for this date this session.
     if prices_are_new:
+        data.setdefault("_auto_selected", set()).add(date_str)
         await _auto_select_cheapest(hass, entry, date_str)
 
     return True

@@ -8,23 +8,29 @@ from typing import Any
 def parse_hourly_prices(
     area_data: list[dict[str, Any]],
     tz: tzinfo | None = None,
-) -> dict[int, float]:
+) -> dict[str, dict[int, float]]:
     """
-    Average 15-min (or 60-min) price slots into hourly buckets.
+    Average 15-min (or 60-min) price slots into hourly buckets, keyed by local date.
 
     Parameters
     ----------
     area_data : list of dicts with "start" (str or datetime) and "price" (numeric).
-    tz : target timezone for hour mapping.  If None, uses UTC.
+    tz : target timezone for date/hour mapping.  If None, uses UTC.
 
     Returns
     -------
-    dict mapping hour (0-23) to averaged price (rounded to 5 decimals).
+    dict mapping local-date ISO string → {hour (0-23): averaged price (EUR/kWh)}.
+
+    Nord Pool returns CET-calendar-day data.  For UTC+ timezones the early local
+    morning hours (e.g. Finnish 00:00–00:45 at UTC+2) belong to the *previous*
+    CET day's response.  By bucketing per local *date* the caller can merge two
+    consecutive Nord Pool responses to build a complete 24-hour picture.
     """
     if tz is None:
         tz = timezone.utc
 
-    hourly: dict[int, list[float]] = {}
+    # hourly[local_date][local_hour] = list of EUR/kWh values
+    hourly: dict[str, dict[int, list[float]]] = {}
     for slot in area_data:
         start = slot.get("start")
         price = slot.get("price")
@@ -32,11 +38,18 @@ def parse_hourly_prices(
             continue
         if isinstance(start, str):
             start = datetime.fromisoformat(start)
-        local_hour = start.astimezone(tz).hour
+        local_dt = start.astimezone(tz)
+        local_date = local_dt.date().isoformat()
+        local_hour = local_dt.hour
         # Nord Pool returns EUR/MWh; convert to EUR/kWh
-        hourly.setdefault(local_hour, []).append(float(price) / 1000.0)
+        hourly.setdefault(local_date, {}).setdefault(local_hour, []).append(
+            float(price) / 1000.0
+        )
 
-    return {h: round(sum(v) / len(v), 5) for h, v in hourly.items()}
+    return {
+        d: {h: round(sum(v) / len(v), 5) for h, v in hours.items()}
+        for d, hours in hourly.items()
+    }
 
 
 def cheapest_hours(prices: dict[int, float], count: int) -> set[int]:
