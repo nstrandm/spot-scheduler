@@ -18,6 +18,8 @@ from .const import (
     CONF_DEVICES,
     CONF_EXPENSIVE_HOURS_COUNT,
     DEFAULT_EXPENSIVE_HOURS,
+    CONF_DEFAULT_STATE,
+    DEFAULT_DEFAULT_STATE,
 )
 
 
@@ -121,6 +123,12 @@ class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
         ]
         devices: list[str] = merged.get(CONF_DEVICES, [])
 
+        default_state_options = [
+            SelectOptionDict(value="dont_touch", label="Don't touch"),
+            SelectOptionDict(value="on",         label="On"),
+            SelectOptionDict(value="off",        label="Off"),
+        ]
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
@@ -135,6 +143,15 @@ class SpotSchedulerOptionsFlow(config_entries.OptionsFlow):
                     EntitySelectorConfig(
                         domain=["switch", "light", "climate", "input_boolean"],
                         multiple=True,
+                    )
+                ),
+                vol.Optional(
+                    CONF_DEFAULT_STATE,
+                    default=merged.get(CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE),
+                ): SelectSelector(
+                    SelectSelectorConfig(
+                        options=default_state_options,
+                        mode=SelectSelectorMode.LIST,
                     )
                 ),
             }),

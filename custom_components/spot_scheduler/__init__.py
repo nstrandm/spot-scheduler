@@ -53,11 +53,19 @@ def _get_nordpool_entry_id(entry: ConfigEntry) -> str | None:
         or entry.data.get(CONF_NORDPOOL_CONFIG_ENTRY)
     )
 
+def _coerce_enabled(value):
+    """Accept true/false (on/off) or 'skip' (explicit don't touch). Absent = use default."""
+    if value is None:
+        return None
+    if value == "skip":
+        return "skip"
+    return cv.boolean(value)
+
 SET_SCHEDULE_SCHEMA = vol.Schema({
     vol.Optional("date"): cv.date,
     vol.Required("hour"): vol.All(vol.Coerce(int), vol.Range(min=0, max=23)),
     vol.Required("device_id"): cv.entity_id,
-    vol.Optional("enabled"): cv.boolean,  # absent/null = unset (don't touch)
+    vol.Optional("enabled"): _coerce_enabled,  # true/false/skip/absent
 })
 
 REFRESH_PRICES_SCHEMA = vol.Schema({
@@ -210,6 +218,7 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     Number-entity and switch option writes (price thresholds, expensive_hours,
     auto_select_enabled, etc.) also trigger this listener, but those should NOT
     cause a full reload — the entities read entry.options dynamically.
+    For non-reload changes, apply the current hour's schedule immediately.
     """
     data = hass.data.get(DOMAIN, {}).get(entry.entry_id, {})
     configured: set = data.get("configured_devices", set())
@@ -220,6 +229,9 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
             configured, current,
         )
         await hass.config_entries.async_reload(entry.entry_id)
+    else:
+        # Settings changed (e.g. default_state) — apply current hour immediately
+        hass.bus.async_fire(f"{DOMAIN}_apply_now", {"entry_id": entry.entry_id})
 
 
 
@@ -559,7 +571,7 @@ async def _auto_select_cheapest(
             for device_id in devices:
                 for hour in blockable:
                     existing = schedules.get(date_str, {}).get(device_id, {}).get(str(hour))
-                    if existing is not True:  # don't overwrite auto-selected ON
+                    if existing not in (True, "skip"):  # don't overwrite explicit ON or skip
                         set_schedule(schedules, date_str, device_id, hour, False)
                         changed = True
             _LOGGER.info(

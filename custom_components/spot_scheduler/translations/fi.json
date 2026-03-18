@@ -36,11 +36,13 @@
         "description": "Valitse Nord Pool -integraatio ja ohjattavat laitteet. Hintarajat, automaattivalinta ja kalliiden tuntien asetukset löytyvät laitteen Konfiguraatio-sivulta.",
         "data": {
           "nordpool_config_entry": "Nord Pool -integraatio",
-          "devices": "Ohjattavat laitteet"
+          "devices": "Ohjattavat laitteet",
+          "default_state": "Oletustila"
         },
         "data_description": {
           "nordpool_config_entry": "Valitse Nord Pool -integraatio tuntihintatietojen hakuun.",
-          "devices": "Valitse laitteet joita Spot Scheduler ohjaa tunneittain päälle/pois."
+          "devices": "Valitse laitteet joita Spot Scheduler ohjaa tunneittain päälle/pois.",
+          "default_state": "Mitä tehdään tunneille joille ei ole aikataulua."
         }
       }
     }

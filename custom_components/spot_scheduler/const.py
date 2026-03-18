@@ -5,7 +5,7 @@ STORAGE_KEY = f"{DOMAIN}.schedules"
 STORAGE_VERSION = 1
 
 # Increment this whenever the card JS changes to force browser cache refresh
-CARD_VERSION = "6"
+CARD_VERSION = "13"
 
 CONF_NORDPOOL_CONFIG_ENTRY = "nordpool_config_entry"
 CONF_DEVICES = "devices"
@@ -39,3 +39,8 @@ DEFAULT_AUTO_SELECT_ENABLED = True  # on by default; count=0 still disables it
 # Option: auto-set expensive hours to OFF when prices arrive
 CONF_BLOCK_EXPENSIVE_HOURS = "block_expensive_hours"
 DEFAULT_BLOCK_EXPENSIVE = False
+
+# Option: what to do with hours that have no explicit schedule
+# Values: "dont_touch" | "on" | "off"
+CONF_DEFAULT_STATE = "default_state"
+DEFAULT_DEFAULT_STATE = "dont_touch"

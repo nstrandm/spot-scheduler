@@ -14,7 +14,7 @@ from homeassistant.helpers.event import async_track_time_change
 
 import homeassistant.util.dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE
 from .logic import count_enabled_slots
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,4 +131,5 @@ class SpotScheduleStatusSensor(_SpotBase):
             "devices": merged.get("devices", []),
             "price_threshold_low": merged.get("price_threshold_low", 5.0),
             "price_threshold_high": merged.get("price_threshold_high", 15.0),
+            "default_state": merged.get(CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE),
         }

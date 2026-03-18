@@ -15,7 +15,8 @@ Spot Scheduler adds a Lovelace card that shows hourly electricity prices as a ba
 - 📊 **Hourly price chart** — 15-minute MTU slots are averaged into hourly prices
 - 🔴 **Expensive hours highlighted** — configurable count, default 3 most expensive per day
 - 📅 **Day min / max price** shown in the card header
-- ✅ **Three-state per-device toggle** — On / Off / Unset (don't touch) for every device and hour
+- ✅ **Per-device schedule toggle** — On / Off / Don't touch / Default for every device and hour
+- ⚙️ **Default state** — configurable fallback for unscheduled hours: On, Off, or Don't touch
 - 🤖 **Auto-select cheapest hours** — automatically marks the N cheapest hours as ON when prices arrive
 - 🚫 **Block expensive hours** — automatically marks the N most expensive hours as OFF
 - 📆 **Multi-day view** — navigate up to 6 days ahead to pre-schedule devices; also 1 day back (yesterday)
@@ -111,7 +112,19 @@ After setup, SpotScheduler adds the following entities under **Settings → Devi
 
 ### Changing settings later
 
-Go to **Settings → Devices & Services → Spot Scheduler → Configure** to modify devices and the expensive hours threshold at any time. Changes take effect immediately after saving.
+Go to **Settings → Devices & Services → Spot Scheduler → Configure** to modify devices, the expensive hours threshold, and the default state at any time. Changes take effect immediately after saving.
+
+#### Default state
+
+The **Default state** setting controls what happens to a device during hours that have no explicit schedule:
+
+| Value | Behaviour |
+|---|---|
+| **Don't touch** *(default)* | Device is left in whatever state it is — SpotScheduler does nothing |
+| **On** | Device is turned on at the start of every unscheduled hour |
+| **Off** | Device is turned off at the start of every unscheduled hour |
+
+This means an **On** hour followed by an unscheduled hour will keep the device on (with *Don't touch*) or turn it off (with *Off*). Use *Off* if you want the device to only run during explicitly scheduled hours.
 
 ---
 
@@ -172,10 +185,13 @@ On narrow screens (below 520 CSS px) the card automatically switches to the spli
 1. **Prices for tomorrow** appear automatically after Nord Pool publishes them (typically ~14:00–16:00 EET for Finland)
 2. Open your dashboard — the bar chart shows hourly average prices
 3. The **most expensive hours** are highlighted with a red border
-4. **Click a cell** to cycle through three states:
+4. **Click a cell** to cycle through states:
    - **✔ blue** — device will turn **on** at the start of that hour
    - **✕ grey** — device will turn **off** at the start of that hour
-   - **faint** — **unset** / don't touch — SpotScheduler leaves the device in whatever state it's in
+   - **– faint** — **don't touch** — SpotScheduler sends no command; device stays in whatever state it is
+   - **✔/✕ dotted border** — no explicit schedule; device follows the *Default state* setting
+
+   > When *Default state* is **Don't touch**, cycling is 3-state (no dotted state). When it is **On** or **Off**, cycling is 4-state and the dotted cell shows what the default will do.
 5. Use **◀ ▶** to navigate between days (1 day back, up to 6 days forward)
 6. Future days (beyond tomorrow) show the schedule grid without price bars — you can still pre-set manual schedules
 

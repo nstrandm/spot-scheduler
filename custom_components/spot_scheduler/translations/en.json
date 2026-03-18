@@ -36,11 +36,13 @@
         "description": "Select the Nord Pool integration and the devices to control. Price thresholds, auto-select, and expensive hours settings are on the device Configuration page.",
         "data": {
           "nordpool_config_entry": "Nord Pool integration",
-          "devices": "Devices to schedule"
+          "devices": "Devices to schedule",
+          "default_state": "Default state"
         },
         "data_description": {
           "nordpool_config_entry": "Select which Nord Pool instance provides hourly price data.",
-          "devices": "Choose which devices Spot Scheduler can schedule on/off by hour."
+          "devices": "Choose which devices Spot Scheduler can schedule on/off by hour.",
+          "default_state": "What to do with hours that have no explicit schedule."
         }
       }
     }

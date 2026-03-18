@@ -118,11 +118,12 @@ def set_schedule(
     target_date: str,
     device_id: str,
     hour: int,
-    enabled: bool | None,
+    enabled: bool | None | str,
 ) -> None:
     """Set a single hour slot in the schedule dict (mutates in place).
 
-    Pass enabled=None to clear the slot (unset / "don't touch").
+    Pass enabled=None to clear the slot (use default).
+    Pass enabled="skip" for explicit don't touch (overrides default_state).
     """
     if enabled is None:
         schedules.get(target_date, {}).get(device_id, {}).pop(str(hour), None)

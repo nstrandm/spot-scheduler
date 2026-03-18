@@ -15,11 +15,11 @@ const TRANSLATIONS = {
     legend_on: "On",
     legend_off: "Off",
     legend_unset: "Don't touch",
+    legend_default: "Default (set to: {state})",
     legend_expensive: "Expensive (top {n})",
     legend_current: "Current hour",
     stat_min: "Min",
     stat_max: "Max",
-    price_row_label: "Avg price (€/kWh) · 15 min slots → hourly average",
     no_devices: "No devices configured.",
     save_hint: "✓ Changes saved automatically to Home Assistant",
     // Editor labels
@@ -49,11 +49,11 @@ const TRANSLATIONS = {
     legend_on: "Päällä",
     legend_off: "Pois",
     legend_unset: "Älä koske",
+    legend_default: "Vakio (asetus: {state})",
     legend_expensive: "Kallis ({n} kalleinta)",
     legend_current: "Nykyinen tunti",
     stat_min: "Min",
     stat_max: "Max",
-    price_row_label: "Tunnin keskihinta (€/kWh) · 15 min arvoista laskettu",
     no_devices: "Ei laitteita konfiguroitu.",
     save_hint: "✓ Muutokset tallentuvat automaattisesti Home Assistantiin",
     // Editor labels
@@ -109,9 +109,8 @@ const STYLES = `
   .legend { display:flex; gap:13px; flex-wrap:wrap; margin-bottom:14px; }
   .leg-item { display:flex; align-items:center; gap:6px;
     font-size:13px; color:var(--secondary-text-color); }
-  .leg-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+  .leg-dot { width:15px; height:15px; border-radius:50%; flex-shrink:0; }
   .price-section { margin-bottom:14px; }
-  .price-lbl { font-size:12px; color:var(--disabled-text-color); margin-bottom:5px; }
   .bars { display:flex; align-items:flex-end; gap:2px; height:100px; }
   .bar-col { flex:1; min-width:24px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
   .bar { width:100%; border-radius:2px 2px 0 0; min-height:2px; }
@@ -137,6 +136,10 @@ const STYLES = `
     border-color:var(----darker-primary-color); color:var(--disabled-text-color); }
   .cell.unset { background:transparent; border-color:var(----darker-primary-color);
     color:var(--disabled-text-color); opacity:0.35; }
+  .cell.default-on { background:transparent; border: 2px dotted var(--primary-color);
+    color:var(--primary-color); opacity:0.7; }
+  .cell.default-off { background:transparent; border: 2px dotted var(--disabled-text-color);
+    color:var(--disabled-text-color); opacity:0.7; }
   .cell.exp-cell { border-color:var(--error-color, #f87171) !important; }
   .cell.cur-cell { box-shadow:0 0 0 2.5px var(--warning-color, #ff9800); }
   .no-prices { text-align:center; padding:20px; color:var(--disabled-text-color);
@@ -345,6 +348,8 @@ class SpotSchedulerCard extends HTMLElement {
     // Price color thresholds (cents/kWh)
     if (attrs.price_threshold_low != null) this._config._thresholdLow = attrs.price_threshold_low;
     if (attrs.price_threshold_high != null) this._config._thresholdHigh = attrs.price_threshold_high;
+    // Default state for unscheduled hours
+    if (attrs.default_state != null) this._defaultState = attrs.default_state;
   }
 
   _findStatusEntity() {
@@ -386,9 +391,18 @@ class SpotSchedulerCard extends HTMLElement {
   }
 
   _toggleSchedule(deviceId, hour) {
-    const cur  = this._isScheduled(deviceId, hour);
-    // Three-state cycle: null → true → false → null
-    const next = cur === null ? true : cur === true ? false : null;
+    const cur = this._isScheduled(deviceId, hour);
+    const defaultState = this._defaultState ?? "dont_touch";
+
+    // When default is on/off: 4-state cycle null→true→false→"skip"→null
+    // "skip" = explicit don't touch, overrides default.
+    // When default is dont_touch: 3-state cycle null→true→false→null
+    let next;
+    if (defaultState !== "dont_touch") {
+      next = cur === null ? true : cur === true ? false : cur === false ? "skip" : null;
+    } else {
+      next = cur === null ? true : cur === true ? false : null;
+    }
 
     if (!this._schedules[this._selectedDate]) this._schedules[this._selectedDate] = {};
     if (!this._schedules[this._selectedDate][deviceId]) this._schedules[this._selectedDate][deviceId] = {};
@@ -401,7 +415,7 @@ class SpotSchedulerCard extends HTMLElement {
 
     if (!this._hass) return;
 
-    // Omit 'enabled' when unsetting (null) — service treats absent as "unset"
+    // Omit 'enabled' when null (use default). Send "skip" as string for explicit don't touch.
     const svcData = { date: this._selectedDate, hour, device_id: deviceId };
     if (next !== null) svcData.enabled = next;
 
@@ -518,20 +532,22 @@ class SpotSchedulerCard extends HTMLElement {
     // ── Legend ────────────────────────────────────────────────────────────────
     const legend = _el("div", "legend");
     const legDefs = [
-      { style: "background:var(--primary-color);border:1.5px solid var(--primary-color)", key: "legend_on" },
-      { style: "background:var(--secondary-background-color);border:1.5px solid var(--divider-color)", key: "legend_off" },
-      { style: "background:transparent;border:1.5px solid var(--divider-color)", key: "legend_unset" },
-      { style: "background:var(--ha-card-background,var(--card-background-color));border:1.5px solid var(--error-color,#f87171)", key: "legend_expensive" },
-      { style: "border:2.5px solid var(--warning-color, #ff9800);background:transparent", key: "legend_current" },
+      { style: "background:var(--primary-color);border:1.5px solid var(--primary-color)", key: "legend_on", icon: "✔", iconColor: "var(--text-primary-color,#fff)" },
+      { style: "background:var(--secondary-background-color);border:1.5px solid var(--divider-color)", key: "legend_off", icon: "✕", iconColor: "var(--secondary-text-color)" },
+      { style: "background:transparent;border:1.5px solid var(--divider-color)", key: "legend_unset", icon: "–", iconColor: "var(--secondary-text-color)" },
+      { style: "background:transparent;border:2px dotted var(--primary-color)", key: "legend_default", icon: "✔", iconColor: "var(--primary-color)", dynamic: true },
+      { style: "background:var(--ha-card-background,var(--card-background-color));border:1.5px solid var(--error-color,#f87171)", key: "legend_expensive", icon: "", iconColor: "" },
+      { style: "border:2.5px solid var(--warning-color, #ff9800);background:transparent", key: "legend_current", icon: "", iconColor: "" },
     ];
     const legendSpans = [];
     for (const item of legDefs) {
       const li = _el("div", "leg-item");
       const dot = _el("div", "leg-dot"); dot.style.cssText = item.style;
+      if (item.icon) { dot.textContent = item.icon; dot.style.display = "flex"; dot.style.alignItems = "center"; dot.style.justifyContent = "center"; dot.style.fontSize = "9px"; dot.style.color = item.iconColor; }
       const span = _el("span");
       li.append(dot, span);
       legend.appendChild(li);
-      legendSpans.push({ span, key: item.key });
+      legendSpans.push({ span, key: item.key, li, dot, item });
     }
     card.appendChild(legend);
 
@@ -545,7 +561,7 @@ class SpotSchedulerCard extends HTMLElement {
     const noPricesMsg  = _el("div", "no-prices");
     const scrollWrap   = _el("div", "scroll-wrap");
 
-    let priceSection, priceLbl, amBarsRow, pmBarsRow;
+    let priceSection, amBarsRow, pmBarsRow;
 
     if (layout === "vertical") {
       // ── Vertical layout: hours as rows, devices as columns ───────────────
@@ -555,7 +571,6 @@ class SpotSchedulerCard extends HTMLElement {
       const gridCols = `85px 45px ${devCols}`;
 
       priceSection = _el("div", "price-section");
-      priceLbl     = _el("div", "price-lbl");
       priceSection.style.display = "none"; // not used in vertical (bars inline)
 
       const vGrid = _el("div", "v-grid");
@@ -624,12 +639,11 @@ class SpotSchedulerCard extends HTMLElement {
       const gridCols = `${labelW}px repeat(24, minmax(28px, 1fr))`;
 
       priceSection = _el("div", "price-section");
-      priceLbl     = _el("div", "price-lbl");
       const barsContainer = _el("div", "bars");
       const barSpacer = _el("div");
       barSpacer.style.cssText = `width:${labelW}px;flex-shrink:0`;
       barsContainer.insertBefore(barSpacer, barsContainer.firstChild);
-      priceSection.append(priceLbl, barsContainer);
+      priceSection.append(barsContainer);
       for (let h = 0; h < 24; h++) {
         const col = _el("div", "bar-col");
         const barPrice = _el("div", "bar-price");
@@ -673,9 +687,6 @@ class SpotSchedulerCard extends HTMLElement {
       // ── Mobile layout: prices → labels → cells per half-day ─────────────
       // Order: 0-11 bars, 0-11 hour labels, device cells 0-11,
       //        divider, 12-23 bars, 12-23 hour labels, device cells 12-23
-      priceLbl = _el("div", "price-lbl"); // hidden – kept for _update compat
-      priceLbl.style.display = "none";
-
       const gridCols12 = "repeat(12, 1fr)";
       const rowStyle   = `display:grid;grid-template-columns:${gridCols12};gap:1px;margin:1px 2px;align-items:center`;
 
@@ -749,7 +760,7 @@ class SpotSchedulerCard extends HTMLElement {
       titleEl, statsEl, minLabel, minValue, maxLabel, maxValue,
       prevBtn, nextBtn, dateLbl,
       legendSpans,
-      priceSection, noPricesMsg, priceLbl, barEls,
+      priceSection, noPricesMsg, barEls,
       amBarsRow, pmBarsRow,
       hourHeaderCells,
       deviceRows, noDevicesMsg, saveHint,
@@ -807,10 +818,29 @@ class SpotSchedulerCard extends HTMLElement {
     d.nextBtn.disabled = !this._canGoNext();
 
     // Legend text
-    for (const { span, key } of d.legendSpans) {
-      span.textContent = key === "legend_expensive"
-        ? this._tr(key, { n: this._config.expensive_hours ?? 3 })
-        : this._tr(key);
+    const defaultState = this._defaultState ?? "dont_touch";
+    for (const { span, key, li, dot, item } of d.legendSpans) {
+      if (key === "legend_default") {
+        // Show only when default is on or off; update dot style and icon per state
+        const visible = defaultState === "on" || defaultState === "off";
+        li.style.display = visible ? "" : "none";
+        if (visible) {
+          const isOn = defaultState === "on";
+          dot.style.cssText = isOn
+            ? "background:transparent;border:2px dotted var(--primary-color)"
+            : "background:transparent;border:2px dotted var(--disabled-text-color)";
+          dot.style.display = "flex"; dot.style.alignItems = "center"; dot.style.justifyContent = "center";
+          dot.style.fontSize = "11px"; dot.style.color = isOn ? "var(--primary-color)" : "var(--disabled-text-color)";
+          dot.style.width = "15px"; dot.style.height = "15px"; dot.style.borderRadius = "50%";
+          dot.textContent = isOn ? "✔" : "✕";
+          const stateLabel = this._tr(isOn ? "on" : "off");
+          span.textContent = this._tr("legend_default", { state: stateLabel });
+        }
+      } else if (key === "legend_expensive") {
+        span.textContent = this._tr(key, { n: this._config.expensive_hours ?? 3 });
+      } else {
+        span.textContent = this._tr(key);
+      }
     }
 
     // Price bars – update each bar's style/class in place
@@ -822,8 +852,6 @@ class SpotSchedulerCard extends HTMLElement {
         d.priceSection.style.display = "";
       }
       d.noPricesMsg.style.display = "none";
-      d.priceLbl.textContent = this._tr("price_row_label");
-
       const showPriceLabels = !!this._config.show_price_labels;
       const isVertical = layout === "vertical";
       for (let h = 0; h < 24; h++) {
@@ -882,9 +910,13 @@ class SpotSchedulerCard extends HTMLElement {
         const cellBase = layout === "vertical" ? "cell v-cell" : layout === "split" ? "cell mobile-cell" : "cell";
         let cls = cellBase;
         let icon = "";
-        if (state === true)        { cls += " on";    icon = "✔"; }
-        else if (state === false)  { cls += " off";   icon = "✕"; }
-        else                       { cls += " unset"; icon = " "; }
+        const defaultState = this._defaultState ?? "dont_touch";
+        if (state === true)          { cls += " on";          icon = "✔"; }
+        else if (state === false)    { cls += " off";         icon = "✕"; }
+        else if (state === "skip")   { cls += " unset";       icon = "–"; }
+        else if (defaultState === "on")  { cls += " default-on";  icon = "✔"; }
+        else if (defaultState === "off") { cls += " default-off"; icon = "✕"; }
+        else                             { cls += " unset";       icon = "–"; }
         if (isExp) cls += " exp-cell";
         if (isCur) cls += " cur-cell";
 
