@@ -123,6 +123,8 @@ class SpotScheduleStatusSensor(_SpotBase):
             "schedules_yesterday": d.get("schedules", {}).get(
                 (dt_util.now().date() - timedelta(days=1)).isoformat(), {}
             ),
+            "prices_all": d.get("prices", {}),
+            "schedules_all": d.get("schedules", {}),
             "min_price": d.get("min_price"),
             "max_price": d.get("max_price"),
             "tomorrow_fetched": d.get("tomorrow_fetched", False),

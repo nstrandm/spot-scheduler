@@ -534,6 +534,8 @@ async def _auto_select_cheapest(
         auto_hours = raw_auto if isinstance(raw_auto, dict) else {}
 
     # Step 1: auto-select cheapest hours (skip if globally disabled)
+    # Fills only unset slots — manual ON/OFF/skip choices are preserved.
+    # Already-ON hours count toward the target so we don't over-select.
     auto_select_enabled = merged.get(CONF_AUTO_SELECT_ENABLED, DEFAULT_AUTO_SELECT_ENABLED)
     for device_id in devices:
         if not auto_select_enabled:
@@ -541,17 +543,23 @@ async def _auto_select_cheapest(
         n = int(auto_hours.get(device_id, 0))
         if n <= 0:
             continue
-        device_sched = schedules.get(date_str, {}).get(device_id)
-        if device_sched is not None and len(device_sched) > 0:
+        device_sched = schedules.get(date_str, {}).get(device_id, {})
+        already_on = sum(1 for v in device_sched.values() if v is True)
+        remaining = max(0, n - already_on)
+        if remaining <= 0:
             continue
-        cheap = cheapest_hours(prices, n)
+        # Only consider hours that have no manual entry
+        unset_prices = {h: p for h, p in prices.items() if str(h) not in device_sched}
+        if not unset_prices:
+            continue
+        cheap = cheapest_hours(unset_prices, remaining)
         schedules.setdefault(date_str, {}).setdefault(device_id, {})
         for hour in cheap:
             schedules[date_str][device_id][str(hour)] = True
         changed = True
         _LOGGER.info(
-            "Auto-select: set %d cheapest hours for %s on %s",
-            n, device_id, date_str,
+            "Auto-select: set %d cheapest hours for %s on %s (%d already ON, %d added)",
+            n, device_id, date_str, already_on, len(cheap),
         )
 
     # Step 2: block expensive hours (if option is enabled)
@@ -595,7 +603,7 @@ def _register_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
         target_date = (call.data.get("date") or dt_util.now().date()).isoformat()
         hour: int        = call.data["hour"]
         device_id: str   = call.data["device_id"]
-        enabled: bool | None = call.data.get("enabled")  # None = unset / don't touch
+        enabled: bool | str | None = call.data.get("enabled")  # None = use default, "skip" = explicit don't touch
 
         matched = False
         for eid, data in hass.data.get(DOMAIN, {}).items():

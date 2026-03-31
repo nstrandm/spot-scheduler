@@ -140,8 +140,11 @@ def get_schedule(
     target_date: str,
     device_id: str,
     hour: int,
-) -> bool | None:
-    """Get the scheduled state for a device/hour, or None if unset."""
+) -> bool | str | None:
+    """Get the scheduled state for a device/hour, or None if unset.
+
+    Returns True (on), False (off), "skip" (explicit don't touch), or None (use default).
+    """
     return (
         schedules
         .get(target_date, {})
@@ -154,7 +157,7 @@ def count_enabled_slots(schedules: dict, target_date: str) -> int:
     """Count how many slots are enabled (True) for a given date."""
     today_sched = schedules.get(target_date, {})
     return sum(
-        sum(1 for v in hours.values() if v)
+        sum(1 for v in hours.values() if v is True)
         for hours in today_sched.values()
     )
 

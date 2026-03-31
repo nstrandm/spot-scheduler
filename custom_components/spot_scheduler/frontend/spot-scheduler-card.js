@@ -9,6 +9,7 @@ const TRANSLATIONS = {
     subtitle_mobile: "Schedule cheapest hours automatically",
     prices_note: "Prices fetched automatically when available",
     prices_pending: "⏳ Waiting for today's prices from Nord Pool",
+    prices_unavailable: "Prices not yet available for this day",
     on: "On",
     off: "Off",
     unset: "–",
@@ -43,6 +44,7 @@ const TRANSLATIONS = {
     subtitle_mobile: "Halvimmat tunnit automaattisesti",
     prices_note: "Hinnat haetaan automaattisesti kun saatavilla",
     prices_pending: "⏳ Odotetaan päivän hintoja Nord Poolilta",
+    prices_unavailable: "Hintoja ei vielä saatavilla tälle päivälle",
     on: "Päällä",
     off: "Pois",
     unset: "–",
@@ -215,6 +217,7 @@ class SpotSchedulerCard extends HTMLElement {
     this._minPrice = null;
     this._maxPrice = null;
     this._selectedDate = _todayISO();
+    this._defaultState = "dont_touch";
     this._lang = "en";
     this._statusEntity = null;
 
@@ -302,33 +305,54 @@ class SpotSchedulerCard extends HTMLElement {
       return `${y}-${m}-${day}`;
     })();
 
-    const todayPrices     = attrs.prices ?? {};
-    const tomorrowPrices  = attrs.prices_tomorrow ?? {};
-    const yesterdayPrices = attrs.prices_yesterday ?? {};
+    // Bulk-load all dates from prices_all / schedules_all (6-day nav)
+    const allPrices = attrs.prices_all;
+    const allSchedules = attrs.schedules_all;
 
-    if (Object.keys(todayPrices).length) {
-      this._prices[today] = {};
-      for (const [h, v] of Object.entries(todayPrices))
-        this._prices[today][parseInt(h)] = v;
+    if (allPrices && typeof allPrices === "object") {
+      for (const [dateStr, hourPrices] of Object.entries(allPrices)) {
+        if (!hourPrices || !Object.keys(hourPrices).length) continue;
+        this._prices[dateStr] = {};
+        for (const [h, v] of Object.entries(hourPrices))
+          this._prices[dateStr][parseInt(h)] = v;
+      }
+    } else {
+      // Fallback: legacy per-day attributes
+      const todayPrices     = attrs.prices ?? {};
+      const tomorrowPrices  = attrs.prices_tomorrow ?? {};
+      const yesterdayPrices = attrs.prices_yesterday ?? {};
+      if (Object.keys(todayPrices).length) {
+        this._prices[today] = {};
+        for (const [h, v] of Object.entries(todayPrices))
+          this._prices[today][parseInt(h)] = v;
+      }
+      if (Object.keys(tomorrowPrices).length) {
+        this._prices[tomorrow] = {};
+        for (const [h, v] of Object.entries(tomorrowPrices))
+          this._prices[tomorrow][parseInt(h)] = v;
+      }
+      if (Object.keys(yesterdayPrices).length) {
+        this._prices[yesterday] = {};
+        for (const [h, v] of Object.entries(yesterdayPrices))
+          this._prices[yesterday][parseInt(h)] = v;
+      }
     }
-    if (Object.keys(tomorrowPrices).length) {
-      this._prices[tomorrow] = {};
-      for (const [h, v] of Object.entries(tomorrowPrices))
-        this._prices[tomorrow][parseInt(h)] = v;
-    }
-    if (Object.keys(yesterdayPrices).length) {
-      this._prices[yesterday] = {};
-      for (const [h, v] of Object.entries(yesterdayPrices))
-        this._prices[yesterday][parseInt(h)] = v;
-    }
-    if (attrs.schedules !== undefined) {
-      this._schedules[today] = attrs.schedules ?? {};
-    }
-    if (attrs.schedules_tomorrow !== undefined) {
-      this._schedules[tomorrow] = attrs.schedules_tomorrow ?? {};
-    }
-    if (attrs.schedules_yesterday !== undefined) {
-      this._schedules[yesterday] = attrs.schedules_yesterday ?? {};
+
+    if (allSchedules && typeof allSchedules === "object") {
+      for (const [dateStr, devSchedules] of Object.entries(allSchedules)) {
+        this._schedules[dateStr] = devSchedules ?? {};
+      }
+    } else {
+      // Fallback: legacy per-day attributes
+      if (attrs.schedules !== undefined) {
+        this._schedules[today] = attrs.schedules ?? {};
+      }
+      if (attrs.schedules_tomorrow !== undefined) {
+        this._schedules[tomorrow] = attrs.schedules_tomorrow ?? {};
+      }
+      if (attrs.schedules_yesterday !== undefined) {
+        this._schedules[yesterday] = attrs.schedules_yesterday ?? {};
+      }
     }
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
@@ -464,7 +488,7 @@ class SpotSchedulerCard extends HTMLElement {
 
   _canGoNext() {
     const today = new Date(_todayISO() + "T12:00:00");
-    const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 1);
+    const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 6);
     return new Date(this._selectedDate + "T12:00:00") < maxDate;
   }
 
@@ -783,7 +807,10 @@ class SpotSchedulerCard extends HTMLElement {
 
     const dayPrices = this._prices[this._selectedDate]
       ?? (isToday ? this._prices[today] ?? {} : {});
-    const pricesLoaded = Object.keys(dayPrices).length > 0;
+    // Require a near-complete set of hours before showing the price chart.
+    // CET→local timezone conversion can spill a single hour (e.g. hour 0)
+    // into an adjacent date — don't treat that as "prices loaded".
+    const pricesLoaded = Object.keys(dayPrices).length >= 20;
     // Global max across all loaded days so scale stays consistent when navigating (TODO 3)
     const allLoadedPrices = Object.values(this._prices).flatMap(day => Object.values(day));
     const maxP = allLoadedPrices.length ? Math.max(...allLoadedPrices) : 0;
@@ -892,7 +919,9 @@ class SpotSchedulerCard extends HTMLElement {
         d.priceSection.style.display = "none";
       }
       d.noPricesMsg.style.display = "";
-      d.noPricesMsg.textContent = this._tr("prices_pending");
+      d.noPricesMsg.textContent = this._selectedDate === _todayISO()
+        ? this._tr("prices_pending")
+        : this._tr("prices_unavailable");
     }
 
     // Schedule grid cells – update only changed attributes

@@ -108,7 +108,7 @@ async def _apply_schedule_for_device(
     hass: HomeAssistant,
     entry: ConfigEntry,
     device_id: str | None,
-    enabled: bool | None,
+    enabled: bool | str | None,
 ) -> None:
     """Immediately apply a schedule change for a single device."""
     if not device_id:

@@ -17,7 +17,7 @@ Spot Scheduler adds a Lovelace card that shows hourly electricity prices as a ba
 - 📅 **Day min / max price** shown in the card header
 - ✅ **Per-device schedule toggle** — On / Off / Don't touch / Default for every device and hour
 - ⚙️ **Default state** — configurable fallback for unscheduled hours: On, Off, or Don't touch
-- 🤖 **Auto-select cheapest hours** — automatically marks the N cheapest hours as ON when prices arrive
+- 🤖 **Auto-select cheapest hours** — automatically marks the N cheapest hours as ON when prices arrive; fills only unscheduled slots, preserving manual choices
 - 🚫 **Block expensive hours** — automatically marks the N most expensive hours as OFF
 - 📆 **Multi-day view** — navigate up to 6 days ahead to pre-schedule devices; also 1 day back (yesterday)
 - 💾 **Persistent schedules** — saved to HA storage, survive restarts, included in HA backups
@@ -41,7 +41,7 @@ Spot Scheduler uses the Nord Pool integration's `nordpool.get_prices_for_date` s
 
 Tomorrow's prices in the Nordics are typically published between **13:00–15:00 CET** (14:00–16:00 EET in Finland). SpotScheduler polls for them every 15 minutes starting at 13:00 local time and also reacts to any Nord Pool sensor update. Once tomorrow's prices are fetched, polling stops until the next day.
 
-Auto-select and block-expensive logic runs **only when prices first arrive** for a date — not on HA restarts or reloads — to avoid overwriting manual schedules or changing device state mid-hour.
+Auto-select and block-expensive logic runs **only when prices first arrive** for a date — not on HA restarts or reloads. Manual schedules are always preserved: auto-select fills only unscheduled hours, and hours you've already set to ON count toward the cheapest-hours target. For example, if you've pre-scheduled 2 hours ON for a future day and auto-select is set to 5, it will add only 3 more cheapest hours when prices arrive.
 
 ---
 
