@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
@@ -111,19 +110,13 @@ class SpotScheduleStatusSensor(_SpotBase):
         return {
             "schedules": d.get("schedules", {}).get(today, {}),
             "prices":    d.get("prices", {}).get(today, {}),
-            "prices_tomorrow": d.get("prices", {}).get(
-                (dt_util.now().date() + timedelta(days=1)).isoformat(), {}
-            ),
-            "schedules_tomorrow": d.get("schedules", {}).get(
-                (dt_util.now().date() + timedelta(days=1)).isoformat(), {}
-            ),
-            "prices_yesterday": d.get("prices", {}).get(
-                (dt_util.now().date() - timedelta(days=1)).isoformat(), {}
-            ),
-            "schedules_yesterday": d.get("schedules", {}).get(
-                (dt_util.now().date() - timedelta(days=1)).isoformat(), {}
-            ),
-            "prices_all": d.get("prices", {}),
+            # Filter out dates with < 20 hours — CET→local timezone
+            # conversion can spill a single hour into an adjacent date.
+            "prices_all": {
+                date: hours
+                for date, hours in d.get("prices", {}).items()
+                if len(hours) >= 20
+            },
             "schedules_all": d.get("schedules", {}),
             "min_price": d.get("min_price"),
             "max_price": d.get("max_price"),

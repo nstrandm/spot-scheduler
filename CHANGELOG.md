@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4] — 2026-04-02
+
+### Changed
+- Removed legacy per-day sensor attributes (`prices_tomorrow`, `schedules_tomorrow`, etc.) — all data now via `prices_all` / `schedules_all`
+- `prices_all` filters out dates with < 20 hours (CET timezone spillover)
+- Simplified frontend data sync — removed fallback paths for legacy attributes
+
 ## [0.2.3] — 2026-03-31
 
 ### Added

@@ -289,70 +289,32 @@ class SpotSchedulerCard extends HTMLElement {
   // ── Load prices + schedules from the status sensor ─────────────────────────
   _syncFromSensor(state) {
     const attrs = state?.attributes ?? {};
-    const today    = _todayISO();
-    const tomorrow = (() => {
-      const d = new Date(); d.setDate(d.getDate() + 1);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    })();
-    const yesterday = (() => {
-      const d = new Date(); d.setDate(d.getDate() - 1);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    })();
+    const today = _todayISO();
 
-    // Bulk-load all dates from prices_all / schedules_all (6-day nav)
-    const allPrices = attrs.prices_all;
-    const allSchedules = attrs.schedules_all;
-
-    if (allPrices && typeof allPrices === "object") {
-      for (const [dateStr, hourPrices] of Object.entries(allPrices)) {
-        if (!hourPrices || !Object.keys(hourPrices).length) continue;
-        this._prices[dateStr] = {};
-        for (const [h, v] of Object.entries(hourPrices))
-          this._prices[dateStr][parseInt(h)] = v;
-      }
-    } else {
-      // Fallback: legacy per-day attributes
-      const todayPrices     = attrs.prices ?? {};
-      const tomorrowPrices  = attrs.prices_tomorrow ?? {};
-      const yesterdayPrices = attrs.prices_yesterday ?? {};
-      if (Object.keys(todayPrices).length) {
-        this._prices[today] = {};
-        for (const [h, v] of Object.entries(todayPrices))
-          this._prices[today][parseInt(h)] = v;
-      }
-      if (Object.keys(tomorrowPrices).length) {
-        this._prices[tomorrow] = {};
-        for (const [h, v] of Object.entries(tomorrowPrices))
-          this._prices[tomorrow][parseInt(h)] = v;
-      }
-      if (Object.keys(yesterdayPrices).length) {
-        this._prices[yesterday] = {};
-        for (const [h, v] of Object.entries(yesterdayPrices))
-          this._prices[yesterday][parseInt(h)] = v;
-      }
+    // Bulk-load all dates from prices_all / schedules_all
+    const allPrices = attrs.prices_all ?? {};
+    for (const [dateStr, hourPrices] of Object.entries(allPrices)) {
+      if (!hourPrices || !Object.keys(hourPrices).length) continue;
+      this._prices[dateStr] = {};
+      for (const [h, v] of Object.entries(hourPrices))
+        this._prices[dateStr][parseInt(h)] = v;
     }
 
-    if (allSchedules && typeof allSchedules === "object") {
-      for (const [dateStr, devSchedules] of Object.entries(allSchedules)) {
-        this._schedules[dateStr] = devSchedules ?? {};
-      }
-    } else {
-      // Fallback: legacy per-day attributes
-      if (attrs.schedules !== undefined) {
-        this._schedules[today] = attrs.schedules ?? {};
-      }
-      if (attrs.schedules_tomorrow !== undefined) {
-        this._schedules[tomorrow] = attrs.schedules_tomorrow ?? {};
-      }
-      if (attrs.schedules_yesterday !== undefined) {
-        this._schedules[yesterday] = attrs.schedules_yesterday ?? {};
-      }
+    // Today's prices also available directly (always up to date)
+    const todayPrices = attrs.prices ?? {};
+    if (Object.keys(todayPrices).length) {
+      this._prices[today] = {};
+      for (const [h, v] of Object.entries(todayPrices))
+        this._prices[today][parseInt(h)] = v;
+    }
+
+    const allSchedules = attrs.schedules_all ?? {};
+    for (const [dateStr, devSchedules] of Object.entries(allSchedules)) {
+      this._schedules[dateStr] = devSchedules ?? {};
+    }
+    // Today's schedules also directly
+    if (attrs.schedules !== undefined) {
+      this._schedules[today] = attrs.schedules ?? {};
     }
     if (attrs.min_price != null) this._minPrice = attrs.min_price;
     if (attrs.max_price != null) this._maxPrice = attrs.max_price;
