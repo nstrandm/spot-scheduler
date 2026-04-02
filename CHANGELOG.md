@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.6] — 2026-04-02
+
+### Changed
+- Fixed HACS validation actions
+
 ## [0.2.4] — 2026-04-02
 
 ### Changed
