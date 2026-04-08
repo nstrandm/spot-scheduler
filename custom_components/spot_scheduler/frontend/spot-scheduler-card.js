@@ -223,6 +223,9 @@ class SpotSchedulerCard extends HTMLElement {
 
     // Persistent DOM element references (populated once in _buildDOM)
     this._dom = null;
+    // AbortController for listeners attached in _buildDOM. Aborted on
+    // rebuild/disconnect so old element closures can be GC'd.
+    this._buildAbort = null;
     this._isMobile = window.matchMedia("(max-width: 519px)").matches;
     this._mq = null;
   }
@@ -242,6 +245,13 @@ class SpotSchedulerCard extends HTMLElement {
   disconnectedCallback() {
     this._mq?.removeEventListener("change", this._mqHandler);
     this._mq = null;
+    // NOTE: intentionally do NOT abort _buildAbort here. HA's Lovelace
+    // temporarily detaches cards when switching views and re-attaches the
+    // same element later — aborting would kill the prev/next/cell listeners
+    // on a DOM tree that's still in use. The controller is aborted only on
+    // the next _buildDOM() (rebuild); if the host element is truly destroyed,
+    // the listeners are unreachable and will be GC'd along with the shadow
+    // DOM anyway.
   }
 
   // ── HA lifecycle ────────────────────────────────────────────────────────────
@@ -457,6 +467,12 @@ class SpotSchedulerCard extends HTMLElement {
   // ── Build persistent DOM (called once, or when config changes) ─────────────
   _buildDOM() {
     const root = this.shadowRoot;
+    // Abort listeners on the previous DOM tree and drop cached references
+    // before clearing, so old elements + closures can be collected.
+    this._buildAbort?.abort();
+    this._buildAbort = new AbortController();
+    const signal = this._buildAbort.signal;
+    this._dom = null;
     root.innerHTML = "";
     const layout = this._computeLayout(); // "desktop" | "split" | "vertical"
     const mobile = layout === "split";
@@ -498,7 +514,7 @@ class SpotSchedulerCard extends HTMLElement {
       d.setDate(d.getDate() - 1);
       this._selectedDate = d.toISOString().split("T")[0];
       this._update();
-    });
+    }, { signal });
     const dateLbl = _el("span", "date-lbl");
     const nextBtn = _el("button", "date-btn", "▶");
     nextBtn.addEventListener("click", () => {
@@ -507,7 +523,7 @@ class SpotSchedulerCard extends HTMLElement {
       d.setDate(d.getDate() + 1);
       this._selectedDate = d.toISOString().split("T")[0];
       this._update();
-    });
+    }, { signal });
     if (layout !== "desktop") {
       dateNav.append(prevBtn, dateLbl, nextBtn, statsEl);
     } else {
@@ -590,7 +606,7 @@ class SpotSchedulerCard extends HTMLElement {
         // Device cells
         for (const devId of devices) {
           const cell = _el("div", "cell v-cell");
-          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h), { signal });
           vGrid.appendChild(cell);
         }
       }
@@ -659,7 +675,7 @@ class SpotSchedulerCard extends HTMLElement {
         const cells = [];
         for (let h = 0; h < 24; h++) {
           const cell = _el("div", "cell");
-          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h), { signal });
           row.appendChild(cell);
           cells.push({ el: cell, devId, hour: h });
         }
@@ -708,7 +724,7 @@ class SpotSchedulerCard extends HTMLElement {
         const pmRow = _el("div"); pmRow.style.cssText = rowStyle;
         for (let h = 0; h < 24; h++) {
           const cell = _el("div", "cell mobile-cell");
-          cell.addEventListener("click", () => this._toggleSchedule(devId, h));
+          cell.addEventListener("click", () => this._toggleSchedule(devId, h), { signal });
           (h < 12 ? amRow : pmRow).appendChild(cell);
           cells[h] = { el: cell, devId, hour: h };
         }
@@ -959,6 +975,8 @@ class SpotSchedulerCardEditor extends HTMLElement {
     this._hass           = null;
     this._form           = null;
     this._namesContainer = null;
+    // Aborts listeners attached to ha-textfield rows on the previous render.
+    this._namesAbort     = null;
   }
 
   setConfig(config) {
@@ -1074,6 +1092,10 @@ class SpotSchedulerCardEditor extends HTMLElement {
     const lang    = this._hass?.locale?.language || "en";
     const devices = this._devices();
     const container = this._namesContainer;
+    // Drop listeners from the previous row set before wiping the container.
+    this._namesAbort?.abort();
+    this._namesAbort = new AbortController();
+    const signal = this._namesAbort.signal;
     container.innerHTML = "";
 
     if (this._secTitle) this._secTitle.textContent = _t(lang, "editor_device_names");
@@ -1109,7 +1131,7 @@ class SpotSchedulerCardEditor extends HTMLElement {
         if (!Object.keys(this._config.device_names).length) delete this._config.device_names;
         this._fire();
       };
-      field.addEventListener("change", onUpdate);
+      field.addEventListener("change", onUpdate, { signal });
 
       row.append(lbl, field);
       container.appendChild(row);

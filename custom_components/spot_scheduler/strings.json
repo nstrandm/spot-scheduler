@@ -48,6 +48,11 @@
     }
   },
   "entity": {
+    "sensor": {
+      "managed_devices": {
+        "name": "Managed devices"
+      }
+    },
     "number": {
       "price_threshold_low": {
         "name": "Min price limit"

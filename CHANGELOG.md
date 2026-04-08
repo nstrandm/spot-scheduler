@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.1] — 2026-04-08
+
+### Added
+- `spot_scheduler.run_auto_select` service — manually trigger cheapest-hours auto-select and block-expensive-hours for a given date. Bypasses the "prices already handled" restart guard, and respects existing manual ON/OFF/skip entries.
+
+### Fixed
+- Auto-select on restart
+
+### Changed
+- `CARD_VERSION` bumped to 17 to bust the browser cache.
+
 ## [0.3.0] — 2026-04-08
 
 ### Changed

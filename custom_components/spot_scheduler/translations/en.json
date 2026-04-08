@@ -37,7 +37,7 @@
         "data": {
           "nordpool_config_entry": "Nord Pool integration",
           "devices": "Devices to schedule",
-          "default_state": "Default state"
+          "default_state": "Default state for unscheduled hours"
         },
         "data_description": {
           "nordpool_config_entry": "Select which Nord Pool instance provides hourly price data.",
@@ -48,6 +48,11 @@
     }
   },
   "entity": {
+    "sensor": {
+      "managed_devices": {
+        "name": "Managed devices"
+      }
+    },
     "number": {
       "price_threshold_low": {
         "name": "Min price limit"

@@ -48,6 +48,11 @@
     }
   },
   "entity": {
+    "sensor": {
+      "managed_devices": {
+        "name": "Ohjatut laitteet"
+      }
+    },
     "number": {
       "price_threshold_low": {
         "name": "Min hintaraja"

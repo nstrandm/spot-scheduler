@@ -70,3 +70,28 @@ apply_schedules_now:
       example: "abc123def456"
       selector:
         text:
+
+run_auto_select:
+  name: Run auto-select
+  description: >
+    Manually run cheapest-hours auto-select and block-expensive-hours for
+    the given date. Bypasses the "prices already handled" guard, so it can
+    be used to re-apply after changing settings or clearing the schedule.
+    Respects existing manual ON/OFF/skip entries — unset hours only.
+  fields:
+    date:
+      name: Date
+      description: Date to run auto-select for (defaults to today).
+      required: false
+      example: "2026-04-08"
+      selector:
+        date:
+    entry_id:
+      name: Entry ID
+      description: >
+        Limit to a specific SpotScheduler config entry (optional).
+        Leave empty to run for all instances.
+      required: false
+      example: "abc123def456"
+      selector:
+        text:

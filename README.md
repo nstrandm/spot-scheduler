@@ -245,7 +245,22 @@ data: {}                      # no parameters required
 #   entry_id: "abc123def456"
 ```
 
-All three services are visible with full field descriptions in **Developer Tools → Services**.
+### `spot_scheduler.run_auto_select`
+
+Manually run cheapest-hours auto-select and block-expensive-hours for a given date. Bypasses the "prices already handled" restart guard, so it can be used to re-apply the logic after changing settings or clearing the schedule. Respects existing manual ON/OFF/skip entries — only unset hours are filled, and explicit ON / *skip* hours are never overwritten.
+
+```yaml
+service: spot_scheduler.run_auto_select
+data:
+  date: "2026-04-09"          # optional, defaults to today
+# Optional: limit to one SpotScheduler instance
+# data:
+#   entry_id: "abc123def456"
+```
+
+> When run for *today*, the block-expensive step will never touch the current or earlier hours — same safety as the automatic path, so a device can't be turned off mid-hour.
+
+All four services are visible with full field descriptions in **Developer Tools → Actions** (renamed from *Services* in HA 2026).
 
 ---
 

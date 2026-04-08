@@ -95,6 +95,11 @@ APPLY_NOW_SCHEMA = vol.Schema({
     vol.Optional("entry_id"): cv.string,
 })
 
+RUN_AUTO_SELECT_SCHEMA = vol.Schema({
+    vol.Optional("entry_id"): cv.string,
+    vol.Optional("date"): vol.Maybe(cv.date),
+})
+
 
 # ── Setup / Unload ─────────────────────────────────────────────────────────────
 
@@ -124,7 +129,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry
     stored = await store.async_load() or {}
 
     merged_cfg = {**entry.data, **entry.options}
-    loaded_prices: dict = stored.get("prices", {})
+    # HA's Store serializes via JSON, which coerces int dict keys to strings.
+    # parse_hourly_prices produces int hour keys, so normalize loaded data back
+    # to int to keep the shape consistent — otherwise mixed keys break integer
+    # comparisons in _auto_select_cheapest (expensive-hours block).
+    loaded_prices: dict = {
+        date: {int(h): p for h, p in hours.items()}
+        for date, hours in stored.get("prices", {}).items()
+    }
     today_str = dt_util.now().date().isoformat()
     today_price_vals = list(loaded_prices.get(today_str, {}).values())
 
@@ -135,7 +147,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntry
         min_price=min(today_price_vals) if today_price_vals else None,
         max_price=max(today_price_vals) if today_price_vals else None,
         configured_devices=set(merged_cfg.get(CONF_DEVICES, [])),
-        prices_in_storage=set(loaded_prices.keys()),
+        # Only treat dates with a (mostly) complete day as "already handled
+        # in storage" for the auto-select restart guard.  A previous session's
+        # today-fetch persists a single hour-0 entry into tomorrow's bucket
+        # (CET→local timezone spillover); without this filter that 1-hour
+        # entry would block auto-select / block-expensive when tomorrow's
+        # prices actually arrive.  20h matches the polling completeness check.
+        prices_in_storage={
+            d for d, hours in loaded_prices.items() if len(hours) >= 20
+        },
     )
     hass.data[DOMAIN].add(entry.entry_id)
 
@@ -208,7 +228,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: SpotSchedulerConfigEntr
     # Only remove services when the last instance is unloaded
     remaining = [eid for eid in hass.data.get(DOMAIN, set()) if eid != entry.entry_id]
     if not remaining:
-        for svc in ("set_device_schedule", "refresh_prices", "apply_schedules_now"):
+        for svc in ("set_device_schedule", "refresh_prices", "apply_schedules_now", "run_auto_select"):
             if hass.services.has_service(DOMAIN, svc):
                 hass.services.async_remove(DOMAIN, svc)
 
@@ -675,4 +695,36 @@ def _register_services(hass: HomeAssistant) -> None:
         hass.services.async_register(
             DOMAIN, "apply_schedules_now", apply_schedules_now,
             schema=APPLY_NOW_SCHEMA,
+        )
+
+    async def run_auto_select(call: ServiceCall) -> None:
+        """Manually run auto-select-cheapest and block-expensive-hours.
+
+        Bypasses the new-prices guard, so it can be called any time — useful
+        after changing settings, clearing the schedule, or when the restart
+        guard has prevented the automatic run.
+        """
+        entry_id = call.data.get("entry_id")
+        target_date = call.data.get("date") or dt_util.now().date()
+        date_str = target_date.isoformat()
+
+        for cfg_entry in hass.config_entries.async_entries(DOMAIN):
+            if cfg_entry.entry_id not in hass.data.get(DOMAIN, set()):
+                continue
+            if entry_id and cfg_entry.entry_id != entry_id:
+                continue
+            # Mark as auto-selected for this session so the automatic path
+            # won't duplicate the work later.
+            cfg_entry.runtime_data.auto_selected.add(date_str)
+            await _auto_select_cheapest(hass, cfg_entry, date_str)
+
+        _LOGGER.info(
+            "run_auto_select triggered manually (entry_id=%s, date=%s)",
+            entry_id or "all", date_str,
+        )
+
+    if not hass.services.has_service(DOMAIN, "run_auto_select"):
+        hass.services.async_register(
+            DOMAIN, "run_auto_select", run_auto_select,
+            schema=RUN_AUTO_SELECT_SCHEMA,
         )

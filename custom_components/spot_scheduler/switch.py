@@ -39,7 +39,7 @@ async def async_setup_entry(
     )
 
     config_switches = [SpotAutoSelectSwitch(entry), SpotBlockExpensiveSwitch(entry)]
-    async_add_entities(config_switches, True)
+    async_add_entities(config_switches)
 
     # Remove stale switch entities (e.g. old per-device schedule switches)
     ent_reg = er.async_get(hass)

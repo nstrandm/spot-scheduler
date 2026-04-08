@@ -1,7 +1,6 @@
 """Config number entities for SpotScheduler (appear in Configuration section on device page)."""
 
 from homeassistant.components.number import NumberEntity, NumberMode
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
@@ -20,10 +19,13 @@ from .const import (
     DOMAIN,
 )
 
+if __name__ != "__main__":
+    from . import SpotSchedulerConfigEntry
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SpotSchedulerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up SpotScheduler config number entities."""
@@ -57,7 +59,7 @@ class _SpotConfigNumber(NumberEntity):
     _attr_mode = NumberMode.BOX
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, entry: SpotSchedulerConfigEntry) -> None:
         self._entry = entry
 
     @property
