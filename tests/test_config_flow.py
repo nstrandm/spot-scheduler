@@ -1,11 +1,11 @@
 """Tests for SpotScheduler config flow."""
-from __future__ import annotations
 
 import pytest
 from unittest.mock import MagicMock, patch
 
 
-def test_step1_requires_nordpool_entry():
+@pytest.mark.asyncio
+async def test_step1_requires_nordpool_entry():
     """Config flow should abort if no Nord Pool entries exist."""
     hass = MagicMock()
     hass.config_entries.async_entries.return_value = []
@@ -14,13 +14,13 @@ def test_step1_requires_nordpool_entry():
     flow = SpotSchedulerConfigFlow()
     flow.hass = hass
 
-    import asyncio
-    result = asyncio.get_event_loop().run_until_complete(flow.async_step_user())
+    result = await flow.async_step_user()
     assert result["type"] == "abort"
     assert result["reason"] == "nordpool_not_found"
 
 
-def test_step2_rejects_empty_devices():
+@pytest.mark.asyncio
+async def test_step2_rejects_empty_devices():
     """Step 2 should show an error when no devices are selected."""
     hass = MagicMock()
     np_entry = MagicMock()
@@ -33,10 +33,7 @@ def test_step2_rejects_empty_devices():
     flow.hass = hass
     flow._step1 = {"name": "Test", "nordpool_config_entry": "np123", "expensive_hours_count": 3}
 
-    import asyncio
-    result = asyncio.get_event_loop().run_until_complete(
-        flow.async_step_devices({"devices": []})
-    )
+    result = await flow.async_step_devices({"devices": []})
     assert result["type"] == "form"
     assert "devices" in result.get("errors", {})
 

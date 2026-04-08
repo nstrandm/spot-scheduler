@@ -1,11 +1,10 @@
 """Switch platform for SpotScheduler – config switches and scheduled device control."""
-from __future__ import annotations
 
 import logging
 
 from homeassistant.components.switch import SwitchEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, Event
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_change
@@ -23,12 +22,15 @@ from .const import (
     DEFAULT_DEFAULT_STATE,
 )
 
+if __name__ != "__main__":
+    from . import SpotSchedulerConfigEntry
+
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SpotSchedulerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     devices: list[str] = (
@@ -106,14 +108,14 @@ async def async_setup_entry(
 
 async def _apply_schedule_for_device(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SpotSchedulerConfigEntry,
     device_id: str | None,
     enabled: bool | str | None,
 ) -> None:
     """Immediately apply a schedule change for a single device."""
     if not device_id:
         return
-    if entry.entry_id not in hass.data.get(DOMAIN, {}):
+    if entry.entry_id not in hass.data.get(DOMAIN, set()):
         return
 
     domain = device_id.split(".")[0]
@@ -136,7 +138,7 @@ async def _apply_schedule_for_device(
 
 async def _apply_schedules(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SpotSchedulerConfigEntry,
     devices: list[str],
 ) -> None:
     """Turn devices on/off per schedule at the top of each hour.
@@ -146,14 +148,14 @@ async def _apply_schedules(
       False → turn off
       None  → apply default_state setting (on / off / dont_touch)
     """
-    if entry.entry_id not in hass.data.get(DOMAIN, {}):
+    if entry.entry_id not in hass.data.get(DOMAIN, set()):
         _LOGGER.warning("_apply_schedules: entry %s not in hass.data, skipping", entry.entry_id)
         return
 
     now     = dt_util.now()
     today   = now.date().isoformat()
     hour    = now.hour
-    sched   = hass.data[DOMAIN][entry.entry_id].get("schedules", {})
+    sched   = entry.runtime_data.schedules
     today_s = sched.get(today, {})
 
     merged = {**entry.data, **entry.options}
@@ -203,22 +205,21 @@ class SpotAutoSelectSwitch(SwitchEntity):
     """Config switch: enable/disable automatic cheapest-hours selection."""
 
     _attr_has_entity_name = True
-    _attr_name            = "Cheapest hours auto-select"
     _attr_translation_key = "auto_select"
     _attr_icon            = "mdi:clock-check-outline"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_should_poll     = False
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, entry: SpotSchedulerConfigEntry) -> None:
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_auto_select_enabled"
 
     @property
-    def device_info(self) -> dict:
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.data.get("name", "SpotScheduler"),
-        }
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self._entry.data.get("name", "SpotScheduler"),
+        )
 
     @property
     def is_on(self) -> bool:
@@ -242,22 +243,21 @@ class SpotBlockExpensiveSwitch(SwitchEntity):
     """Config switch: when on, automatically set expensive hours to OFF when prices arrive."""
 
     _attr_has_entity_name = True
-    _attr_name            = "Expensive hours turn off"
     _attr_translation_key = "block_expensive_hours"
     _attr_icon            = "mdi:fire-off"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_should_poll     = False
 
-    def __init__(self, entry: ConfigEntry) -> None:
+    def __init__(self, entry: SpotSchedulerConfigEntry) -> None:
         self._entry = entry
         self._attr_unique_id = f"{entry.entry_id}_block_expensive_hours"
 
     @property
-    def device_info(self) -> dict:
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.data.get("name", "SpotScheduler"),
-        }
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self._entry.data.get("name", "SpotScheduler"),
+        )
 
     @property
     def is_on(self) -> bool:

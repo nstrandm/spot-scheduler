@@ -1,30 +1,31 @@
 """Sensor platform for SpotScheduler."""
-from __future__ import annotations
 
 import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback, Event
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_change
 
 import homeassistant.util.dt as dt_util
 
-from .const import DOMAIN, CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE
-from .logic import count_enabled_slots
+from .const import DOMAIN, CONF_DEVICES, CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE
+
+if __name__ != "__main__":
+    from . import SpotSchedulerConfigEntry, SpotSchedulerData
 
 _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: SpotSchedulerConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    entities = [SpotScheduleStatusSensor(hass, entry)]
+    entities = [SpotScheduleStatusSensor(entry)]
     async_add_entities(entities, True)
 
     # Remove stale sensor entities left over from previous versions
@@ -67,60 +68,75 @@ class _SpotBase(SensorEntity):
     _attr_has_entity_name = True
     _attr_should_poll = False
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        self.hass = hass
+    def __init__(self, entry: SpotSchedulerConfigEntry) -> None:
         self._entry = entry
 
     @property
-    def device_info(self) -> dict:
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.data.get("name", "SpotScheduler"),
-            "manufacturer": "SpotScheduler",
-            "model": "Spot Price Scheduler",
-        }
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self._entry.data.get("name", "SpotScheduler"),
+            manufacturer="SpotScheduler",
+            model="Spot Price Scheduler",
+        )
 
-    def _data(self) -> dict:
-        return self.hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {})
+    def _data(self) -> SpotSchedulerData | None:
+        if self._entry.entry_id not in self.hass.data.get(DOMAIN, set()):
+            return None
+        return self._entry.runtime_data
 
 
 class SpotScheduleStatusSensor(_SpotBase):
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
-        super().__init__(hass, entry)
-        self._attr_unique_id = f"{entry.entry_id}_schedule_status"
-        self._attr_name = "Schedule status"
-        self._attr_icon = "mdi:calendar-clock"
-        # "slots" is not an HA-standard unit; omit unit and state_class so
-        # HA doesn't try to graph this as a measurement or add it to energy stats.
+    def __init__(self, entry: SpotSchedulerConfigEntry) -> None:
+        super().__init__(entry)
+        self._attr_unique_id = f"{entry.entry_id}_managed_devices"
+        self._attr_name = "Managed devices"
+        self._attr_icon = "mdi:devices"
         self._attr_native_unit_of_measurement = None
         self._attr_state_class = None
 
     @property
     def native_value(self) -> int:
-        today = dt_util.now().date().isoformat()
-        return count_enabled_slots(self._data().get("schedules", {}), today)
+        merged = {**self._entry.data, **self._entry.options}
+        return len(merged.get(CONF_DEVICES, []))
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         today = dt_util.now().date().isoformat()
-        d = self._data()
-        config = d.get("config", {})
+        data = self._data()
+        if data is None:
+            merged = {**self._entry.data, **self._entry.options}
+            return {
+                "schedules": {},
+                "prices": {},
+                "prices_all": {},
+                "schedules_all": {},
+                "min_price": None,
+                "max_price": None,
+                "tomorrow_fetched": False,
+                "expensive_hours_count": merged.get("expensive_hours_count", 3),
+                "auto_select_hours": merged.get("auto_select_hours", 0),
+                "devices": merged.get("devices", []),
+                "price_threshold_low": merged.get("price_threshold_low", 5.0),
+                "price_threshold_high": merged.get("price_threshold_high", 15.0),
+                "default_state": merged.get(CONF_DEFAULT_STATE, DEFAULT_DEFAULT_STATE),
+            }
         # Merge options over data for current settings
-        merged = {**config, **self._entry.options}
+        merged = {**self._entry.data, **self._entry.options}
         return {
-            "schedules": d.get("schedules", {}).get(today, {}),
-            "prices":    d.get("prices", {}).get(today, {}),
+            "schedules": data.schedules.get(today, {}),
+            "prices":    data.prices.get(today, {}),
             # Filter out dates with < 20 hours — CET→local timezone
             # conversion can spill a single hour into an adjacent date.
             "prices_all": {
                 date: hours
-                for date, hours in d.get("prices", {}).items()
+                for date, hours in data.prices.items()
                 if len(hours) >= 20
             },
-            "schedules_all": d.get("schedules", {}),
-            "min_price": d.get("min_price"),
-            "max_price": d.get("max_price"),
-            "tomorrow_fetched": d.get("tomorrow_fetched", False),
+            "schedules_all": data.schedules,
+            "min_price": data.min_price,
+            "max_price": data.max_price,
+            "tomorrow_fetched": data.tomorrow_fetched,
             "expensive_hours_count": merged.get("expensive_hours_count", 3),
             "auto_select_hours": merged.get("auto_select_hours", 0),
             "devices": merged.get("devices", []),

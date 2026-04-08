@@ -1,9 +1,9 @@
 """Config number entities for SpotScheduler (appear in Configuration section on device page)."""
-from __future__ import annotations
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
@@ -61,13 +61,13 @@ class _SpotConfigNumber(NumberEntity):
         self._entry = entry
 
     @property
-    def device_info(self) -> dict:
-        return {
-            "identifiers": {(DOMAIN, self._entry.entry_id)},
-            "name": self._entry.data.get("name", "SpotScheduler"),
-            "manufacturer": "SpotScheduler",
-            "model": "Spot Price Scheduler",
-        }
+    def device_info(self) -> DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self._entry.entry_id)},
+            name=self._entry.data.get("name", "SpotScheduler"),
+            manufacturer="SpotScheduler",
+            model="Spot Price Scheduler",
+        )
 
     def _merged(self) -> dict:
         return {**self._entry.data, **self._entry.options}
@@ -81,7 +81,6 @@ class _SpotConfigNumber(NumberEntity):
 class SpotPriceThresholdLowNumber(_SpotConfigNumber):
     """Price below which hours are shown green."""
 
-    _attr_name = "Min price limit"
     _attr_translation_key = "price_threshold_low"
     _attr_native_min_value = 0
     _attr_native_max_value = 50
@@ -104,7 +103,6 @@ class SpotPriceThresholdLowNumber(_SpotConfigNumber):
 class SpotPriceThresholdHighNumber(_SpotConfigNumber):
     """Price above which hours are shown red."""
 
-    _attr_name = "Max price limit"
     _attr_translation_key = "price_threshold_high"
     _attr_native_min_value = 0
     _attr_native_max_value = 50
@@ -127,7 +125,6 @@ class SpotPriceThresholdHighNumber(_SpotConfigNumber):
 class SpotAutoSelectHoursNumber(_SpotConfigNumber):
     """Global count of cheapest hours to auto-select for all devices."""
 
-    _attr_name = "Cheapest hours"
     _attr_translation_key = "auto_select_hours"
     _attr_native_min_value = 0
     _attr_native_max_value = 12
@@ -154,7 +151,6 @@ class SpotAutoSelectHoursNumber(_SpotConfigNumber):
 class SpotExpensiveHoursNumber(_SpotConfigNumber):
     """Number of expensive hours to highlight in red."""
 
-    _attr_name = "Expensive hours"
     _attr_translation_key = "expensive_hours"
     _attr_native_min_value = 0
     _attr_native_max_value = 12

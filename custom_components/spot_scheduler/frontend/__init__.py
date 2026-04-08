@@ -1,5 +1,4 @@
 """Frontend resource registration for SpotScheduler Lovelace card."""
-from __future__ import annotations
 
 import logging
 import pathlib

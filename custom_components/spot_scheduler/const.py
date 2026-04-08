@@ -5,7 +5,7 @@ STORAGE_KEY = f"{DOMAIN}.schedules"
 STORAGE_VERSION = 1
 
 # Increment this whenever the card JS changes to force browser cache refresh
-CARD_VERSION = "14"
+CARD_VERSION = "15"
 
 CONF_NORDPOOL_CONFIG_ENTRY = "nordpool_config_entry"
 CONF_DEVICES = "devices"

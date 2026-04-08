@@ -6,7 +6,7 @@
 
 Spot Scheduler adds a Lovelace card that shows hourly electricity prices as a bar chart and lets you click each cell to schedule a device **on**, **off**, or leave it **unset** (don't touch) for that hour. Schedules are stored persistently and executed automatically at the start of each hour.
 
-**Requires:** Home Assistant 2025.1+ with the built-in [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool/).
+**Requires:** Home Assistant 2026.1+ with the built-in [Nord Pool integration](https://www.home-assistant.io/integrations/nordpool/) and Python 3.14+.
 
 ---
 
@@ -49,8 +49,9 @@ Auto-select and block-expensive logic runs **only when prices first arrive** for
 
 | Requirement | Version |
 |---|---|
-| Home Assistant | 2025.1.0+ |
-| Nord Pool (built-in) | included in HA 2025.1+ |
+| Home Assistant | 2026.1.0+ |
+| Python | 3.14+ |
+| Nord Pool (built-in) | included in HA 2026.1+ |
 | HACS | 1.0+ (for HACS install) |
 
 > **Note:** This integration uses the **built-in** Nord Pool integration, not the old HACS custom component. Make sure Nord Pool is set up under *Settings → Devices & Services* before installing SpotScheduler.
@@ -201,7 +202,7 @@ On narrow screens (below 520 CSS px) the card automatically switches to the spli
 
 | Entity | Description |
 |---|---|
-| `sensor.spotscheduler_schedule_status` | Number of ON-hours scheduled today; attributes include full price and schedule data used by the card |
+| `sensor.spotscheduler_managed_devices` | Number of managed devices; attributes include full price and schedule data used by the card |
 
 The sensor updates automatically when prices arrive or schedules change. Prices and schedules for all available dates are exposed as sensor attributes and consumed by the card.
 

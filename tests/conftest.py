@@ -1,5 +1,4 @@
 """Shared pytest fixtures – no HA import here so pure logic tests work standalone."""
-from __future__ import annotations
 import pytest
 
 

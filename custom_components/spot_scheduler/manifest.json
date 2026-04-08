@@ -16,8 +16,5 @@
     "documentation":  "https://github.com/nstrandm/spot-scheduler",
     "iot_class":  "calculated",
     "issue_tracker":  "https://github.com/nstrandm/spot-scheduler/issues",
-    "requirements":  [
-
-                     ],
-    "version":  "0.2.6"
+"version":  "0.3.0"
 }

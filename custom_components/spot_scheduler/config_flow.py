@@ -1,5 +1,4 @@
 """Config flow for SpotScheduler."""
-from __future__ import annotations
 
 import voluptuous as vol
 from homeassistant import config_entries

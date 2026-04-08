@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0] — 2026-04-08
+
+### Changed
+- Minimum requirement bumped to Home Assistant 2026.1+ and Python 3.14+
+- Removed `from __future__ import annotations` (Python 3.14 defers annotation evaluation natively via PEP 649)
+- Linting and type-checking targets updated to Python 3.14
+
 ## [0.2.6] — 2026-04-02
 
 ### Changed

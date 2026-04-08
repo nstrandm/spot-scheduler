@@ -1,5 +1,4 @@
 """Pure logic functions for SpotScheduler – no Home Assistant dependency."""
-from __future__ import annotations
 
 from datetime import datetime, date, timedelta, timezone, tzinfo
 from typing import Any

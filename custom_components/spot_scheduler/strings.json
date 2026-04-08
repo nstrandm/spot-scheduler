@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Spot Scheduler",
-        "description": "Configure Spot Scheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2025.1+).",
+        "description": "Configure Spot Scheduler to schedule devices based on Nord Pool electricity spot prices.\n\nRequires the built-in Nord Pool integration (Home Assistant 2026.1+).",
         "data": {
           "name": "Name",
           "nordpool_config_entry": "Nord Pool integration entry",
@@ -36,11 +36,13 @@
         "description": "Select the Nord Pool integration and the devices to control. Price thresholds, auto-select, and expensive hours settings are on the device Configuration page.",
         "data": {
           "nordpool_config_entry": "Nord Pool integration",
-          "devices": "Devices to schedule"
+          "devices": "Devices to schedule",
+          "default_state": "Default state for unscheduled hours"
         },
         "data_description": {
           "nordpool_config_entry": "Select which Nord Pool instance provides hourly price data.",
-          "devices": "Choose which devices Spot Scheduler can schedule on/off by hour."
+          "devices": "Choose which devices Spot Scheduler can schedule on/off by hour.",
+          "default_state": "What to do with hours that have no explicit schedule."
         }
       }
     }

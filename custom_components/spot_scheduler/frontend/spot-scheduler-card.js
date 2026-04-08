@@ -342,7 +342,7 @@ class SpotSchedulerCard extends HTMLElement {
     if (!this._hass) return null;
     return Object.keys(this._hass.states).find(
       id => id.startsWith("sensor.") &&
-            id.includes("schedule_status") &&
+            id.includes("managed_devices") &&
             (id.includes("spot_scheduler") || id.includes("spotscheduler"))
     ) ?? null;
   }
@@ -988,7 +988,7 @@ class SpotSchedulerCardEditor extends HTMLElement {
     if (!this._hass) return [];
     const sensorId = this._config.status_entity ||
       Object.keys(this._hass.states).find(id =>
-        id.startsWith("sensor.") && id.includes("schedule_status") &&
+        id.startsWith("sensor.") && id.includes("managed_devices") &&
         (id.includes("spot_scheduler") || id.includes("spotscheduler"))
       );
     return this._hass.states?.[sensorId]?.attributes?.devices ?? [];
