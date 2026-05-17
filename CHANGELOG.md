@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2] — 2026-05-17
+
+### Changed
+- Frontend cache busting now uses a content hash of the JS file instead of a manual `CARD_VERSION` constant
+- **Integration reload is now sufficient after updates** — full HA restart no longer required
+- Removed `CARD_VERSION` from `const.py`
+
 ## [0.3.1] — 2026-04-08
 
 ### Added

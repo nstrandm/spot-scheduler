@@ -70,11 +70,13 @@ Auto-select and block-expensive logic runs **only when prices first arrive** for
 
 The Lovelace card JS resource is registered automatically when the integration starts — no manual resource registration needed.
 
+> **Updating:** After updating via HACS, a full restart is only needed for the first install. For subsequent updates, go to **Settings → Devices & Services → Spot Scheduler → ⋮ → Reload** — no restart required.
+
 ### Manual installation
 
 1. Copy the `custom_components/spot_scheduler/` folder to your HA `config/custom_components/` directory
    - The Lovelace card JS is located at `custom_components/spot_scheduler/frontend/spot-scheduler-card.js`
-2. **Restart Home Assistant**
+2. **Restart Home Assistant** (first install only — subsequent updates only need an integration reload)
 3. Go to **Settings → Devices & Services → + Add integration → SpotScheduler**
 
 The card resource is registered automatically on first startup. If auto-registration fails (e.g. YAML-mode dashboards), add the resource manually:
